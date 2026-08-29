@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
+salida/excel/*.xlsx
+salida/html/*.html
+salida/logs/*.log
+salida/historico/*
+!salida/**/.gitkeep

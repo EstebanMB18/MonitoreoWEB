@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="60" viewBox="0 0 220 60" fill="none">
+  <rect width="220" height="60" rx="14" fill="#FFFFFF"/>
+  <circle cx="26" cy="30" r="14" fill="#E36C0A"/>
+  <circle cx="38" cy="21" r="8" fill="#78BE20" fill-opacity="0.95"/>
+  <path d="M19 31c2-6 8-10 15-9 4 0 8 2 11 5-3 1-6 3-8 6-3 4-5 8-5 12-6-2-11-7-13-14Z" fill="#F6A53A"/>
+  <text x="58" y="26" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#E36C0A">Compensar</text>
+  <text x="58" y="43" font-family="Segoe UI, Arial, sans-serif" font-size="10" font-weight="600" fill="#6D7B59">Monitoreo AWS</text>
+</svg>

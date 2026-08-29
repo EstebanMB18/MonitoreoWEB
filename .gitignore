@@ -1,0 +1,70 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# Variables y secretos
+.env
+.env.*
+!.env.example
+*.secret
+secrets/
+
+# Sesiones / navegador
+storage_state/
+storage/
+sessions/
+cookies/
+*.session.json
+
+# Runtime
+logs/
+runtime/
+temp/
+tmp/
+
+# Salidas y descargas
+outputs/
+downloads/
+salida/
+reportes/
+reports/generated/
+data/temporal_descargas/
+data/salida/
+
+# Bases locales
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+
+# Backups
+backups/
+*.backup
+*.backup_*
+*.bak
+
+# IDE / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Excel / artefactos temporales
+~$*.xlsx
+~$*.xls
+
+# Configuración local
+config/local.json
+config/app.local.json
+
+# Credenciales AWS locales
+.aws/

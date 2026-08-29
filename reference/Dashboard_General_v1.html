@@ -1,0 +1,78 @@
+<!doctype html><html lang='es'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Monitoreo Compensar · Vista Gerencial</title><style>
+    :root{--orange:#F26B1D;--orange2:#FF9254;--blue:#0B5CAB;--navy:#16324A;--green:#14834A;--yellow:#A16A00;--red:#C93636;--bg:#f4f7fb;--card:#fff;--line:#ffd9c6;--ink:#18324b;--muted:#708197;--shadow:0 12px 30px rgba(20,48,77,.09)}
+    *{box-sizing:border-box} body{margin:0;font-family:Segoe UI,Inter,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+    .hero{background:linear-gradient(112deg,#15304d 0%,#173b60 58%,#214d78 100%);border-bottom:5px solid var(--orange);color:white;padding:18px 26px;box-shadow:0 8px 28px rgba(10,35,58,.18)}
+    .hero-row{display:flex;align-items:center;justify-content:space-between;gap:20px} .brand{display:flex;gap:14px;align-items:center}
+    .logo{width:46px;height:46px;border-radius:15px;background:linear-gradient(135deg,var(--orange),var(--orange2));display:grid;place-items:center;font-size:28px;font-weight:900;box-shadow:0 8px 20px rgba(242,107,29,.28)}
+    .brand h1{font-size:25px;margin:0} .brand p{margin:4px 0 0;color:#ccdaea;font-size:13px} .head-right{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+    .badge{border-radius:999px;padding:8px 12px;font-size:12px;font-weight:800;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15)} .badge.mode{background:var(--orange);border-color:transparent}
+    .shell{max-width:1700px;margin:auto;padding:18px} .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:15px}
+    .kpi{background:white;border:1px solid #ffd9c6;border-radius:18px;padding:15px 16px 15px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden} .kpi:before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;background:linear-gradient(180deg,var(--orange),var(--orange2))}
+    .kpi .label{font-size:11px;color:var(--muted);font-weight:900;text-transform:uppercase;letter-spacing:.06em} .kpi .value{font-size:24px;font-weight:900;margin-top:6px;color:var(--navy)}
+    .status{display:inline-flex;gap:6px;align-items:center;font-size:11px;font-weight:900;border-radius:999px;padding:6px 10px} .status.ok{color:#147443;background:#e9f7ef} .status.warn{color:#966100;background:#fff4d6} .status.bad{color:#bb3030;background:#fdeaea} .status.neutral{color:#657487;background:#eef2f6} .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+    .shot{margin-bottom:15px} .shot-label{display:flex;justify-content:space-between;align-items:center;margin:4px 2px 8px} .shot-label strong{font-size:14px;color:var(--navy)} .shot-label span{font-size:11px;color:var(--muted)}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px} .card{background:white;border:1px solid #ffd9c6;border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
+    .card-head{padding:13px 15px;border-bottom:1px solid #ffe4d6;display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(180deg,#fff5ef,#fff)} .card-head h3{margin:0;font-size:17px} .eyebrow{font-size:10px;color:#9c4a18;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+    .card-body{padding:13px 15px} .section-title{display:flex;align-items:center;gap:8px;margin:2px 0 9px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#365674;font-weight:900} .section-title:before{content:'';width:5px;height:17px;border-radius:6px;background:var(--orange)} .top-gap{margin-top:14px}
+    .vert-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px} .vert{border:1px solid #ffd9c6;border-radius:15px;padding:11px;background:linear-gradient(180deg,#fff,#fffaf7)} .herc-card+ .herc-card{margin-top:10px}
+    .vert-top{display:flex;justify-content:space-between;gap:10px;align-items:start;margin-bottom:7px} .vert-name{font-weight:900;color:#103c70;font-size:13px} .vert-code{font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:800} .orange-number{color:var(--orange)!important;font-size:25px!important}
+    .metric-line{display:grid;grid-template-columns:1.45fr .75fr .55fr .75fr;gap:6px;padding:5px 0;border-top:1px dashed #ecd9cc;font-size:11px} .metric-line:first-of-type{border-top:0} .metric-line span:nth-child(n+2){text-align:right}
+    .mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px} .mini{background:linear-gradient(180deg,#fff,#fff8f3);border:1px solid #ffd9c6;border-radius:14px;padding:11px} .mini .t{font-size:10px;color:var(--muted);font-weight:800} .mini .n{font-size:22px;font-weight:900;margin-top:5px;color:var(--navy)}
+    .table-like{display:grid;gap:7px} .table-head,.table-row{display:grid;grid-template-columns:1.5fr .7fr .55fr .75fr;gap:7px;align-items:center} .table-head{padding:8px 10px;border-radius:11px;background:#fff0e7;border:1px solid #ffd7bf;font-size:10px;font-weight:900;text-transform:uppercase;color:#9a4410} .table-row{padding:8px 10px;border-radius:11px;background:#fffaf6;border:1px solid #ffe2d2;font-size:11px} .table-row span:nth-child(n+2),.table-head span:nth-child(n+2){text-align:right} .table-row .estado,.table-head .estado{text-align:center}
+    .note-orange,.callout{background:linear-gradient(135deg,#fff6ef,#fff);border:1px solid #ffd9c6;border-radius:15px;padding:11px 13px;color:#79401e;font-size:11px;line-height:1.45;margin-bottom:11px} .empty{padding:18px;border:1px dashed #d9e0e8;border-radius:14px;color:var(--muted);background:#fafcff;text-align:center}
+    .footer{padding:10px 0 3px;color:var(--muted);font-size:10px;text-align:right}
+    @media(max-width:1100px){.summary{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.vert-grid{grid-template-columns:1fr}}
+    @media print{.hero{box-shadow:none}.shell{max-width:none;padding:9px}.card,.kpi{box-shadow:none}.shot{break-inside:avoid}}
+    </style></head><body>
+    <header class='hero'><div class='hero-row'><div class='brand'><div class='logo'>C</div><div><h1>Monitoreo Compensar</h1><p>Vista gerencial · estado operativo del corte</p></div></div><div class='head-right'><span class='badge'>16/08/2026 · 11:42</span><span class='badge mode'>FIN DE SEMANA</span></div></div></header>
+    <main class='shell'>
+      <section class='summary'>
+        <div class='kpi'><div class='label'>Pasarelas</div><div class='value'>Sin Información</div><span class='status neutral'><i class='dot'></i>Sin Información</span></div>
+        <div class='kpi'><div class='label'>AWS</div><div class='value'>Sin Información</div><span class='status neutral'><i class='dot'></i>Sin Información</span></div>
+        <div class='kpi'><div class='label'>Hércules</div><div class='value'>Sin Información</div><span class='status neutral'><i class='dot'></i>Sin Información</span></div>
+        <div class='kpi'><div class='label'>Novedades relevantes</div><div class='value'>0</div><div style='margin-top:6px;color:var(--muted);font-size:11px'>Solo novedades operativas, no estado técnico del bot.</div></div>
+      </section>
+      
+    <div class='shot'>
+      <div class='shot-label'><strong>Pantallazo 1 · Servicios AWS</strong><span>Fin de semana / festivo</span></div>
+      <div class='grid2'>
+        <section class='card'><div class='card-head'><div><div class='eyebrow'>AWS</div><h3>API Orquestador de Pagos</h3></div><span class='status neutral'><i class='dot'></i>Sin Información</span></div>
+          <div class='card-body'><div class='section-title'>Aprobadas</div><div class='empty'>AWS aún no ha publicado datos gerenciales. Ejecuta AWS una vez después de instalar el Sprint 12.</div><div class='section-title top-gap'>Con error</div><div class='empty'>AWS aún no ha publicado datos gerenciales. Ejecuta AWS una vez después de instalar el Sprint 12.</div></div>
+        </section>
+        <section class='card'><div class='card-head'><div><div class='eyebrow'>AWS</div><h3>Mensajería · OTP · Subsidios · TUP · CSC</h3></div><span class='status neutral'><i class='dot'></i>Sin Información</span></div>
+          <div class='card-body'><div class='empty'>Sin información AWS.</div>
+            <div class='section-title top-gap'>Mensajería</div>
+            <div class='mini-grid'>
+              <div class='mini'><div class='t'>Timeout</div><div class='n'>0</div></div>
+              <div class='mini'><div class='t'>Error 503</div><div class='n'>0</div></div>
+              <div class='mini'><div class='t'>Error 502</div><div class='n'>0</div></div>
+              <div class='mini'><div class='t'>Total Send</div><div class='n'>0</div></div>
+              <div class='mini'><div class='t'>Replicador</div><div class='n'>0</div></div>
+              <div class='mini'><div class='t'>API Subsidios · ERROR CX</div><div class='n'>0</div></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class='shot'>
+      <div class='shot-label'><strong>Pantallazo 2 · Pasarela eCollect</strong><span>Verticales priorizadas</span></div>
+      <section class='card'><div class='card-head'><div><div class='eyebrow'>Pasarelas</div><h3>Monitoreo de verticales</h3></div><span class='status neutral'><i class='dot'></i>Sin Información</span></div>
+        <div class='card-body'><div class='empty'>Sin información de Pasarelas para el corte.</div></div>
+      </section>
+    </div>
+
+    <div class='shot'>
+      <div class='shot-label'><strong>Pantallazo 3 · Zoom créditos y medios de pago</strong><span>41605 · 41607 · 41612 · Tienda</span></div>
+      <section class='card'><div class='card-head'><div><div class='eyebrow'>Pasarelas</div><h3>Detalle priorizado</h3></div><span class='status neutral'><i class='dot'></i>Sin Información</span></div>
+        <div class='card-body'><div class='empty'>Sin información.</div></div>
+      </section>
+    </div>
+
+    <div class='shot'>
+      <div class='shot-label'><strong>Pantallazo 4 · Hércules</strong><span>Cotización, canales y formas de pago</span></div>
+      <div class='empty'>Sin información de Hércules para el corte.</div>
+    </div>
+    
+      <div class='footer'>Dashboard gerencial automático · sin logs, rutas, workers ni tiempos técnicos</div>
+    </main></body></html>

@@ -1,0 +1,43 @@
+{
+  "app_name": "Centro de Monitoreo Compensar",
+  "analista": "Esteban Melo",
+  "timezone": "America/Bogota",
+  "output_root": "C:\\Users\\esteban\\OneDrive - Compensar\\COORDINACION SOPORTE SOLUCIONES - Monitoreo diario",
+  "retention": {
+    "logs_days": 3,
+    "downloads_days": 2,
+    "diagnostics_days": 3,
+    "max_log_files_per_folder": 30
+  },
+  "schedule": {
+    "09": {
+      "pasarelas": "08:45",
+      "aws": "08:52",
+      "hercules": "08:57"
+    },
+    "13": {
+      "pasarelas": "12:45",
+      "aws": "12:52",
+      "hercules": "12:57"
+    },
+    "17": {
+      "pasarelas": "16:45",
+      "aws": "16:52",
+      "hercules": "16:57"
+    }
+  },
+  "pasarelas": {
+    "slow_visible": [
+      {
+        "codigo": "41605",
+        "tipo": "JAVA"
+      },
+      {
+        "codigo": "41610",
+        "tipo": "RED"
+      }
+    ],
+    "worker_timeout_minutes": 35,
+    "visible_slow_workers": true
+  }
+}

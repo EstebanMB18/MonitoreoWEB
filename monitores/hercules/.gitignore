@@ -1,0 +1,7 @@
+.venv/
+.env
+storage/hercules_sesion.json
+downloads/
+reports/
+__pycache__/
+*.pyc

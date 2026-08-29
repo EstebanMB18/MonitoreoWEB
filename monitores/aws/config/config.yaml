@@ -1,0 +1,48 @@
+app:
+  nombre: Monitoreo AWS
+  analista: Esteban Melo
+  timezone: America/Bogota
+  region: us-east-1
+  abrir_html_al_final: true
+  conservar_dias_salida: 3
+  salida_oficial: 'C:/Users/esteban/OneDrive - Compensar/COORDINACION SOPORTE SOLUCIONES - Monitoreo diario/AWS'
+  nombre_excel_oficial: 'Monitoreo_AWS.xlsx'
+  nombre_html_oficial: 'Dashboard_AWS.html'
+
+profiles:
+  interopprod: interopprod
+  cscprod: cscprod
+  corporativoprod: corporativoprod
+
+services:
+  interopprod:
+    apiorqpagos: /aws/bwce/interop-prod-apiorqpagos
+    apisubsidios: /aws/bwce/apisubsidios
+    tarjetatup: /aws/bwce/tarjetatup
+    apimoduloseguridad: /aws/bwce/apimoduloseguridad
+    serviciosred: /aws/elastic/con/serviciosred
+  cscprod:
+    apiorqpagos_proxy: /aws/lambda/interop-prod-apiorqpagos-Proxy-PaymentsPost
+  corporativoprod:
+    apimensajeria: /aws/lambda/interop-prod-apimensajeria-APIMENSAJERIA
+    replicador: /aws/lambda/Azdevops-Dynamic-apimodulosegu-ApiFunctionreplicar-T7MessxJe2ox
+    validarotp: /aws/lambda/interop-prod-apimoduloseguridad-validarotp
+
+thresholds:
+  tarjeta_tup:
+    normal_max: 30
+    regular_max: 200
+    atencion_max: 250
+    preocupante_desde: 251
+  api_pagos:
+    errores_preocupantes_desde: 41
+  mongodb:
+    errores_alarmantes_desde: 11
+  mensajeria:
+    error_400_mismo_dato_desde: 101
+  replicador:
+    minimo_replicaciones: 1
+  servicios_red:
+    minutos_alerta: 60
+    minutos_revisar: 45
+    minimo_tup_ok_para_evaluar: 1
