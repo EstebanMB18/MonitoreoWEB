@@ -47,13 +47,18 @@ export function DashboardPage({
   }, [onBackendStatusChange])
 
   useEffect(() => {
-    void loadDashboard()
+    const initialLoad = window.setTimeout(() => {
+      void loadDashboard()
+    }, 0)
 
     const interval = window.setInterval(() => {
       void loadDashboard()
     }, 15000)
 
-    return () => window.clearInterval(interval)
+    return () => {
+      window.clearTimeout(initialLoad)
+      window.clearInterval(interval)
+    }
   }, [loadDashboard])
 
   if (loading) {
@@ -201,3 +206,4 @@ export function DashboardPage({
     </div>
   )
 }
+
