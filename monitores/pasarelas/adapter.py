@@ -2,6 +2,9 @@
 
 import os
 import subprocess
+import time
+import threading
+import queue
 import sys
 from pathlib import Path
 
@@ -98,27 +101,9 @@ class PasarelasMonitor(BaseMonitor):
         env["PYTHONIOENCODING"] = "utf-8"
         env["PYTHONUNBUFFERED"] = "1"
 
-        process = subprocess.run(
+        process = self._run_streaming_process(
             cmd,
-            cwd=str(BASE),
             env=env,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
-
-        self.stdout = process.stdout or ""
-        self.stderr = process.stderr or ""
-
-        self._publish_output(
-            self.stdout,
-            warning=False,
-        )
-
-        self._publish_output(
-            self.stderr,
-            warning=True,
         )
 
         if process.returncode != 0:
@@ -668,6 +653,7 @@ class PasarelasMonitor(BaseMonitor):
             "alerta",
             "nivel_alerta",
             "estado_alerta",
+            "estado",
         ]:
             if column not in self.df.columns:
                 continue
@@ -688,6 +674,12 @@ class PasarelasMonitor(BaseMonitor):
                         "NORMAL",
                         "VERDE",
                         "SIN ALERTA",
+                        "APRENDIENDO",
+                        "LEARNING",
+                        "SIN_DATOS",
+                        "SIN DATOS",
+                        "NO_DATA",
+                        "REGISTRADO",
                     ]
                 )
             ]
@@ -701,6 +693,247 @@ class PasarelasMonitor(BaseMonitor):
                 return True
 
         return False
+
+    def _run_streaming_process(
+        self,
+        cmd: list[str],
+        *,
+        env: dict,
+    ) -> subprocess.Popen:
+        timeout_seconds = int(
+            env.get(
+                "PASARELAS_TIMEOUT_SEGUNDOS",
+                os.getenv(
+                    "PASARELAS_TIMEOUT_SEGUNDOS",
+                    "1800",
+                ),
+            )
+        )
+
+        process = subprocess.Popen(
+            cmd,
+            cwd=str(BASE),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            bufsize=1,
+        )
+
+        output_queue = queue.Queue()
+        lines: list[str] = []
+
+        def reader() -> None:
+            assert process.stdout is not None
+
+            try:
+                for raw in process.stdout:
+                    output_queue.put(raw)
+            finally:
+                output_queue.put(None)
+
+        thread = threading.Thread(
+            target=reader,
+            daemon=True,
+            name=(
+                "pasarelas-output-"
+                f"{self.context.run_id[:8]}"
+            ),
+        )
+
+        thread.start()
+
+        started = time.monotonic()
+        reader_finished = False
+
+        while True:
+            elapsed = (
+                time.monotonic()
+                - started
+            )
+
+            if elapsed > timeout_seconds:
+                self.logger.error(
+                    "Pasarelas supero el timeout "
+                    f"general de {timeout_seconds} segundos."
+                )
+
+                try:
+                    subprocess.run(
+                        [
+                            "taskkill",
+                            "/PID",
+                            str(process.pid),
+                            "/T",
+                            "/F",
+                        ],
+                        capture_output=True,
+                        text=True,
+                    )
+                except Exception as exc:
+                    self.logger.warning(
+                        "No fue posible cerrar "
+                        "el arbol de procesos Pasarelas: "
+                        f"{exc}"
+                    )
+
+                try:
+                    process.wait(timeout=10)
+                except Exception:
+                    pass
+
+                self.stdout = "".join(lines)
+                self.stderr = ""
+
+                raise TimeoutError(
+                    "Pasarelas excedio el timeout "
+                    f"general de {timeout_seconds} segundos."
+                )
+
+            try:
+                item = output_queue.get(
+                    timeout=0.5
+                )
+            except queue.Empty:
+                if (
+                    process.poll() is not None
+                    and reader_finished
+                ):
+                    break
+
+                continue
+
+            if item is None:
+                reader_finished = True
+
+                if process.poll() is not None:
+                    break
+
+                continue
+
+            lines.append(item)
+
+            line = item.rstrip(
+                "\r\n"
+            )
+
+            if not line.strip():
+                continue
+
+            self._publish_stream_line(
+                line
+            )
+
+            self._update_stream_progress(
+                line
+            )
+
+        process.wait()
+        thread.join(timeout=2)
+
+        self.stdout = "".join(lines)
+        self.stderr = ""
+
+        return process
+
+    def _publish_stream_line(
+        self,
+        line: str,
+    ) -> None:
+        lowered = line.lower()
+
+        warning_patterns = (
+            "advertencia",
+            "timeout",
+            "fall?",
+            "fallo",
+            "error:",
+        )
+
+        if any(
+            pattern in lowered
+            for pattern in warning_patterns
+        ):
+            self.logger.warning(line)
+        else:
+            self.logger.info(line)
+
+    def _update_stream_progress(
+        self,
+        line: str,
+    ) -> None:
+        import re
+
+        normalized = line.strip()
+        lowered = normalized.lower()
+
+        if "payu iniciado en paralelo" in lowered:
+            self.logger.progress(
+                30,
+                "PayU iniciado; preparando eCollect",
+            )
+            return
+
+        if "orden ecollect preparado" in lowered:
+            self.logger.progress(
+                33,
+                "Orden eCollect preparado",
+            )
+            return
+
+        match = re.search(
+            r"\[ECOLLECT\s+(\d+)/(\d+)\]\s+"
+            r"(\d+)\s+([A-Za-z]+)",
+            normalized,
+            flags=re.IGNORECASE,
+        )
+
+        if match:
+            current = int(match.group(1))
+            total = max(
+                int(match.group(2)),
+                1,
+            )
+            codigo = match.group(3)
+            tipo = match.group(4).upper()
+
+            progress = 35 + int(
+                (current - 1)
+                / total
+                * 33
+            )
+
+            self.logger.progress(
+                progress,
+                (
+                    f"eCollect {current}/{total}: "
+                    f"{codigo} {tipo}"
+                ),
+                data={
+                    "source": "ECOLLECT",
+                    "current": current,
+                    "total": total,
+                    "codigo": codigo,
+                    "tipo": tipo,
+                },
+            )
+            return
+
+        if "payu finalizado" in lowered:
+            self.logger.progress(
+                70,
+                "PayU finalizado",
+            )
+            return
+
+        if "consolidado pasarelas:" in lowered:
+            self.logger.progress(
+                73,
+                "Consolidando resultados de Pasarelas",
+            )
+            return
 
     def _publish_output(
         self,
