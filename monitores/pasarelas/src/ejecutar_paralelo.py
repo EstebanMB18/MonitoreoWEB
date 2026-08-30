@@ -96,7 +96,28 @@ def ejecutar_ecollect_secuencial(all_items, fi, ff):
 
         cmd, env = _worker_cmd([(codigo, tipo)], fi, ff, name, visible)
         proc = subprocess.Popen(cmd, cwd=str(ROOT), env=env)
-        rc = proc.wait()
+        worker_timeout_s = int(os.getenv("ECOLLECT_WORKER_TIMEOUT_SEGUNDOS", "720"))
+
+        try:
+            rc = proc.wait(timeout=worker_timeout_s)
+
+        except subprocess.TimeoutExpired:
+            print(
+                f"TIMEOUT: {name} supero {worker_timeout_s} segundos. "
+                "Se cerrara el worker y se continuara con el siguiente."
+            )
+
+            try:
+                subprocess.run(
+                    ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+                    capture_output=True,
+                    text=True,
+                )
+            except Exception as exc:
+                print(f"ADVERTENCIA cerrando {name}: {exc}")
+
+            failed.append(f"{name}_TIMEOUT")
+            continue
 
         print(f"[ECOLLECT {i}/{len(all_items)}] finalizado código={rc}")
 

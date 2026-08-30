@@ -68,3 +68,9 @@ config/app.local.json
 
 # Credenciales AWS locales
 .aws/
+
+# Pasarelas V2 - runtime generado
+monitores/pasarelas/data/temporal_descargas/
+monitores/pasarelas/data/salida/
+monitores/pasarelas/data/historico/
+monitores/pasarelas/data/mensual/
