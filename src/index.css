@@ -747,3 +747,52 @@ button {
     padding-right: 16px;
   }
 }
+
+.monitor-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.run-button {
+  min-width: 76px;
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 8px;
+  color: white;
+  background: var(--primary);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 160ms ease;
+}
+
+.run-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(255, 91, 17, 0.2);
+}
+
+.run-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.monitor-run-error {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--error);
+  background: var(--error-soft);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.monitor-progress-block .progress-heading {
+  gap: 12px;
+}
+
+.monitor-progress-block .progress-heading > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

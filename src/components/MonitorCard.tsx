@@ -1,11 +1,19 @@
-﻿import type { DashboardMonitor } from '../types/api'
+﻿import type {
+  DashboardMonitor,
+  RunDetail,
+} from '../types/api'
 import { StatusBadge } from './StatusBadge'
 
 interface MonitorCardProps {
   monitor: DashboardMonitor
+  activeRun?: RunDetail | null
+  runError?: string | null
+  starting?: boolean
+  onRun?: (monitorId: string) => void
 }
 
 const activeStates = new Set([
+  'PENDING',
   'PREPARING',
   'RUNNING',
   'PROCESSING',
@@ -25,8 +33,41 @@ function formatDuration(seconds?: number | null) {
   return `${minutes}m ${remaining}s`
 }
 
-export function MonitorCard({ monitor }: MonitorCardProps) {
-  const isActive = activeStates.has(monitor.status)
+export function MonitorCard({
+  monitor,
+  activeRun,
+  runError,
+  starting = false,
+  onRun,
+}: MonitorCardProps) {
+  const visibleRun = activeRun ?? null
+
+  const visibleStatus =
+    visibleRun?.status ?? monitor.status
+
+  const visibleProgress =
+    visibleRun?.progress ?? monitor.progress
+
+  const visibleRecords =
+    visibleRun?.records ?? monitor.records
+
+  const visibleAlerts =
+    visibleRun?.alerts ?? monitor.alerts
+
+  const visibleDuration =
+    visibleRun?.duration_seconds ??
+    monitor.duration_seconds
+
+  const isActive =
+    visibleRun != null &&
+    activeStates.has(visibleRun.status)
+
+  const canRun =
+    monitor.id === 'aws' &&
+    monitor.enabled &&
+    monitor.supports_manual_run &&
+    !isActive &&
+    !starting
 
   return (
     <article className="monitor-card">
@@ -42,14 +83,22 @@ export function MonitorCard({ monitor }: MonitorCardProps) {
           </div>
         </div>
 
-        <StatusBadge status={monitor.status} />
+        <StatusBadge status={visibleStatus} />
       </div>
 
-      {isActive && (
+      {(isActive || starting) && (
         <div className="monitor-progress-block">
           <div className="progress-heading">
-            <span>Progreso</span>
-            <strong>{monitor.progress}%</strong>
+            <span>
+              {starting
+                ? 'Iniciando ejecución'
+                : visibleRun?.current_message ??
+                  'Ejecución en curso'}
+            </span>
+
+            <strong>
+              {starting ? '...' : `${visibleProgress}%`}
+            </strong>
           </div>
 
           <div
@@ -57,10 +106,20 @@ export function MonitorCard({ monitor }: MonitorCardProps) {
             role="progressbar"
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-valuenow={monitor.progress}
+            aria-valuenow={visibleProgress}
           >
-            <span style={{ width: `${monitor.progress}%` }} />
+            <span
+              style={{
+                width: `${starting ? 3 : visibleProgress}%`,
+              }}
+            />
           </div>
+        </div>
+      )}
+
+      {runError && (
+        <div className="monitor-run-error">
+          {runError}
         </div>
       )}
 
@@ -68,33 +127,55 @@ export function MonitorCard({ monitor }: MonitorCardProps) {
         <div>
           <span>Registros</span>
           <strong>
-            {monitor.records == null
+            {visibleRecords == null
               ? '—'
-              : monitor.records.toLocaleString('es-CO')}
+              : visibleRecords.toLocaleString('es-CO')}
           </strong>
         </div>
 
         <div>
           <span>Alertas</span>
-          <strong>{monitor.alerts.length}</strong>
+          <strong>{visibleAlerts.length}</strong>
         </div>
 
         <div>
           <span>Duración</span>
-          <strong>{formatDuration(monitor.duration_seconds)}</strong>
+          <strong>{formatDuration(visibleDuration)}</strong>
         </div>
       </div>
 
       <div className="monitor-card-footer">
         <span>
-          {monitor.last_run_type
-            ? `Última ejecución · ${monitor.last_run_type}`
-            : 'Sin ejecuciones registradas'}
+          {visibleRun
+            ? `${visibleRun.run_type} · ${visibleRun.run_id.slice(0, 8)}`
+            : monitor.last_run_type
+              ? `Última ejecución · ${monitor.last_run_type}`
+              : 'Sin ejecuciones registradas'}
         </span>
 
-        <button type="button" className="link-button">
-          Ver detalle
-        </button>
+        <div className="monitor-actions">
+          <button
+            type="button"
+            className="link-button"
+          >
+            Ver detalle
+          </button>
+
+          {monitor.id === 'aws' && (
+            <button
+              type="button"
+              className="run-button"
+              disabled={!canRun}
+              onClick={() => onRun?.(monitor.id)}
+            >
+              {starting
+                ? 'Iniciando...'
+                : isActive
+                  ? 'Ejecutando'
+                  : 'Ejecutar'}
+            </button>
+          )}
+        </div>
       </div>
     </article>
   )
