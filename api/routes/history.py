@@ -1,0 +1,278 @@
+﻿from __future__ import annotations
+
+from datetime import date, timedelta
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+from api.storage import (
+    get_daily_closure,
+    list_daily_closures,
+)
+from core.daily_closure import (
+    catch_up_all_monitors,
+    close_all_monitors,
+    close_monitor_day,
+)
+
+
+router = APIRouter()
+
+
+VALID_MONITORS = {
+    "AWS",
+    "PASARELAS",
+    "HERCULES",
+}
+
+
+class DailyCloseRequest(BaseModel):
+    closure_date: str | None = None
+    monitor: str | None = None
+    catch_up: bool = False
+    start_date: str | None = None
+
+
+def _validate_monitor(
+    monitor: str,
+) -> str:
+    value = monitor.upper()
+
+    if value not in VALID_MONITORS:
+        raise HTTPException(
+            status_code=404,
+            detail="Monitor no encontrado.",
+        )
+
+    return value
+
+
+def _validate_date(
+    value: str | None,
+) -> str | None:
+    if value is None:
+        return None
+
+    try:
+        return date.fromisoformat(
+            value
+        ).isoformat()
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Fecha invalida. "
+                "Use formato YYYY-MM-DD."
+            ),
+        )
+
+
+@router.get("/history/daily")
+def daily_history(
+    monitor: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+):
+    normalized_monitor = None
+
+    if monitor:
+        normalized_monitor = (
+            _validate_monitor(
+                monitor
+            )
+        )
+
+    start_date = _validate_date(
+        start_date
+    )
+    end_date = _validate_date(
+        end_date
+    )
+
+    if (
+        start_date
+        and end_date
+        and start_date > end_date
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "start_date no puede ser "
+                "posterior a end_date."
+            ),
+        )
+
+    items = list_daily_closures(
+        monitor=normalized_monitor,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    return {
+        "items": items,
+        "total": len(items),
+    }
+
+
+@router.get(
+    "/history/daily/{monitor}"
+)
+def daily_history_monitor(
+    monitor: str,
+    closure_date: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+):
+    normalized_monitor = (
+        _validate_monitor(
+            monitor
+        )
+    )
+
+    if closure_date:
+        closure_date = _validate_date(
+            closure_date
+        )
+
+        item = get_daily_closure(
+            normalized_monitor,
+            closure_date,
+        )
+
+        if item is None:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "Cierre diario "
+                    "no encontrado."
+                ),
+            )
+
+        return item
+
+    start_date = _validate_date(
+        start_date
+    )
+    end_date = _validate_date(
+        end_date
+    )
+
+    if (
+        start_date
+        and end_date
+        and start_date > end_date
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "start_date no puede ser "
+                "posterior a end_date."
+            ),
+        )
+
+    items = list_daily_closures(
+        monitor=normalized_monitor,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    return {
+        "monitor": normalized_monitor,
+        "items": items,
+        "total": len(items),
+    }
+
+
+@router.post("/history/close")
+def close_history(
+    payload: DailyCloseRequest,
+):
+    target_date = (
+        _validate_date(
+            payload.closure_date
+        )
+        if payload.closure_date
+        else (
+            date.today()
+            - timedelta(days=1)
+        ).isoformat()
+    )
+
+    if target_date >= date.today().isoformat():
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "El cierre diario solo puede "
+                "realizarse hasta ayer."
+            ),
+        )
+
+    if payload.catch_up:
+        start_date = _validate_date(
+            payload.start_date
+        )
+
+        if payload.monitor:
+            monitor = _validate_monitor(
+                payload.monitor
+            )
+
+            from core.daily_closure import (
+                catch_up_monitor_closures,
+            )
+
+            items = (
+                catch_up_monitor_closures(
+                    monitor=monitor,
+                    start_date=start_date,
+                    until_date=target_date,
+                )
+            )
+
+            return {
+                "mode": "catch_up",
+                "monitor": monitor,
+                "until_date": target_date,
+                "items": items,
+                "total": len(items),
+            }
+
+        result = catch_up_all_monitors(
+            start_date=start_date,
+            until_date=target_date,
+        )
+
+        return {
+            "mode": "catch_up",
+            "until_date": target_date,
+            "items": result,
+            "total": sum(
+                len(items)
+                for items in result.values()
+            ),
+        }
+
+    if payload.monitor:
+        monitor = _validate_monitor(
+            payload.monitor
+        )
+
+        item = close_monitor_day(
+            monitor=monitor,
+            closure_date=target_date,
+        )
+
+        return {
+            "mode": "single",
+            "item": item,
+        }
+
+    items = close_all_monitors(
+        closure_date=target_date,
+    )
+
+    return {
+        "mode": "all",
+        "items": items,
+        "total": len(items),
+    }

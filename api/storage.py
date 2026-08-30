@@ -74,6 +74,47 @@ def init_db() -> None:
                 "ADD COLUMN details_json TEXT"
             )
 
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS daily_closures (
+                monitor TEXT NOT NULL,
+                closure_date TEXT NOT NULL,
+
+                coverage_status TEXT NOT NULL,
+                overall_status TEXT NOT NULL,
+
+                official_runs INTEGER NOT NULL DEFAULT 0,
+                successful_runs INTEGER NOT NULL DEFAULT 0,
+
+                total_records INTEGER NOT NULL DEFAULT 0,
+                alerts_count INTEGER NOT NULL DEFAULT 0,
+                errors_count INTEGER NOT NULL DEFAULT 0,
+
+                first_run_at TEXT,
+                last_run_at TEXT,
+
+                snapshot_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+
+                PRIMARY KEY (
+                    monitor,
+                    closure_date
+                )
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_daily_closures_date
+            ON daily_closures (
+                closure_date
+            )
+            """
+        )
+
         conn.commit()
 
 
@@ -211,3 +252,192 @@ def list_saved_runs() -> list[dict[str, Any]]:
         items.append(item)
 
     return items
+
+
+def save_daily_closure(
+    closure: dict[str, Any],
+) -> None:
+    init_db()
+
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO daily_closures (
+                monitor,
+                closure_date,
+                coverage_status,
+                overall_status,
+                official_runs,
+                successful_runs,
+                total_records,
+                alerts_count,
+                errors_count,
+                first_run_at,
+                last_run_at,
+                snapshot_json,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?
+            )
+            ON CONFLICT(
+                monitor,
+                closure_date
+            )
+            DO UPDATE SET
+                coverage_status=excluded.coverage_status,
+                overall_status=excluded.overall_status,
+                official_runs=excluded.official_runs,
+                successful_runs=excluded.successful_runs,
+                total_records=excluded.total_records,
+                alerts_count=excluded.alerts_count,
+                errors_count=excluded.errors_count,
+                first_run_at=excluded.first_run_at,
+                last_run_at=excluded.last_run_at,
+                snapshot_json=excluded.snapshot_json,
+                updated_at=excluded.updated_at
+            """,
+            (
+                closure["monitor"],
+                closure["closure_date"],
+                closure["coverage_status"],
+                closure["overall_status"],
+                closure["official_runs"],
+                closure["successful_runs"],
+                closure["total_records"],
+                closure["alerts_count"],
+                closure["errors_count"],
+                closure.get("first_run_at"),
+                closure.get("last_run_at"),
+                json.dumps(
+                    closure.get("snapshot", {}),
+                    ensure_ascii=False,
+                ),
+                closure["created_at"],
+                closure["updated_at"],
+            ),
+        )
+
+        conn.commit()
+
+
+def get_daily_closure(
+    monitor: str,
+    closure_date: str,
+) -> dict[str, Any] | None:
+    init_db()
+
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM daily_closures
+            WHERE monitor = ?
+              AND closure_date = ?
+            """,
+            (
+                monitor.upper(),
+                closure_date,
+            ),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    item = dict(row)
+
+    item["snapshot"] = json.loads(
+        item.pop("snapshot_json") or "{}"
+    )
+
+    return item
+
+
+def list_daily_closures(
+    *,
+    monitor: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict[str, Any]]:
+    init_db()
+
+    clauses = []
+    params: list[Any] = []
+
+    if monitor:
+        clauses.append("monitor = ?")
+        params.append(monitor.upper())
+
+    if start_date:
+        clauses.append("closure_date >= ?")
+        params.append(start_date)
+
+    if end_date:
+        clauses.append("closure_date <= ?")
+        params.append(end_date)
+
+    where = ""
+
+    if clauses:
+        where = (
+            " WHERE "
+            + " AND ".join(clauses)
+        )
+
+    sql = (
+        "SELECT * "
+        "FROM daily_closures"
+        + where
+        + " ORDER BY closure_date DESC, monitor ASC"
+    )
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            sql,
+            params,
+        ).fetchall()
+
+    items = []
+
+    for row in rows:
+        item = dict(row)
+
+        item["snapshot"] = json.loads(
+            item.pop("snapshot_json") or "{}"
+        )
+
+        items.append(item)
+
+    return items
+
+
+
+def get_latest_daily_closure(
+    monitor: str,
+) -> dict[str, Any] | None:
+    init_db()
+
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM daily_closures
+            WHERE monitor = ?
+            ORDER BY closure_date DESC
+            LIMIT 1
+            """,
+            (monitor.upper(),),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    item = dict(row)
+
+    item["snapshot"] = json.loads(
+        item.pop("snapshot_json") or "{}"
+    )
+
+    return item
