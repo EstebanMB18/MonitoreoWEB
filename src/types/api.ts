@@ -60,3 +60,57 @@ export interface ParsedAlert {
   detalle?: string
   raw: string
 }
+
+export type RunType =
+  | 'OFFICIAL'
+  | 'MANUAL'
+  | 'INCIDENT'
+  | 'TEST'
+
+export interface RunRequest {
+  run_type?: RunType
+  cut?: string | null
+  reason?: string | null
+}
+
+export interface RunEvent {
+  event_id: string
+  timestamp: string
+  run_id: string
+  monitor: string
+  level: string
+  event_type: string
+  message: string
+  progress: number | null
+  data: unknown
+}
+
+export interface RunDetail {
+  run_id: string
+  monitor: string
+  run_type: RunType
+  cut: string | null
+  reason: string | null
+
+  status: RunStatus
+  progress: number
+  current_message?: string | null
+
+  official: boolean
+  historical: boolean
+  publish_allowed: boolean
+  installation_mode: string
+
+  created_at: string
+  started_at: string | null
+  finished_at: string | null
+  duration_seconds: number | null
+
+  records: number | null
+  alerts: string[]
+  errors: string[]
+
+  outputs: Record<string, string>
+  metadata: Record<string, unknown>
+  events: RunEvent[]
+}
