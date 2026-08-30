@@ -1,24 +1,59 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sqlite3
 from pathlib import Path
 from typing import Any
 
+from core.platform.paths import (
+    PROJECT_ROOT,
+    ensure_user_directories,
+)
 
-DB_PATH = (
-    Path(__file__).resolve().parent.parent
+
+LEGACY_DB_PATH = (
+    PROJECT_ROOT
     / "storage"
     / "db"
     / "monitoreo.db"
 )
 
+DB_PATH = (
+    ensure_user_directories()["db"]
+    / "monitoreo.db"
+)
 
-def get_connection() -> sqlite3.Connection:
+
+def _ensure_db_location() -> None:
+    """
+    Migra una base local antigua del repositorio
+    al directorio de datos del usuario.
+
+    Nunca sobrescribe una base nueva existente.
+    """
     DB_PATH.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
+
+    if DB_PATH.exists():
+        return
+
+    if (
+        LEGACY_DB_PATH.exists()
+        and LEGACY_DB_PATH.is_file()
+    ):
+        shutil.copy2(
+            LEGACY_DB_PATH,
+            DB_PATH,
+        )
+
+
+
+
+def get_connection() -> sqlite3.Connection:
+    _ensure_db_location()
 
     conn = sqlite3.connect(
         DB_PATH,
