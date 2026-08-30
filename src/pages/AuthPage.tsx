@@ -98,7 +98,7 @@ export function AuthPage({
       setError(
         err instanceof Error
           ? err.message
-          : 'No fue posible iniciar sesi?n.',
+          : 'No fue posible iniciar sesión.',
       )
     } finally {
       setLoading(false)
@@ -151,7 +151,7 @@ export function AuthPage({
           <h1>NEXUS</h1>
 
           <p>
-            Monitoreo, an?lisis y acci?n en una
+            Monitoreo, análisis y acción en una
             sola plataforma.
           </p>
         </div>
@@ -161,9 +161,9 @@ export function AuthPage({
         <div className="auth-card">
           <span className="auth-card-eyebrow">
             {bootstrapRequired
-              ? 'Configuraci?n inicial'
+              ? 'Configuración inicial'
               : mfaRequired
-                ? 'Verificaci?n MFA'
+                ? 'Verificación MFA'
                 : 'Acceso seguro'}
           </span>
 
@@ -171,15 +171,15 @@ export function AuthPage({
             {bootstrapRequired
               ? 'Crear administrador'
               : mfaRequired
-                ? 'C?digo de autenticaci?n'
-                : 'Iniciar sesi?n'}
+                ? 'Código de autenticación'
+                : 'Iniciar sesión'}
           </h2>
 
           <p className="auth-description">
             {bootstrapRequired
-              ? 'NEXUS a?n no tiene usuarios. Crea la cuenta administrativa inicial.'
+              ? 'NEXUS aún no tiene usuarios. Crea la cuenta administrativa inicial.'
               : mfaRequired
-                ? 'Ingresa el c?digo temporal generado por tu aplicaci?n autenticadora.'
+                ? 'Ingresa el código temporal generado por tu aplicación autenticadora.'
                 : 'Ingresa con tu cuenta local de NEXUS.'}
           </p>
 
@@ -225,7 +225,7 @@ export function AuthPage({
                 </label>
 
                 <label>
-                  Contrase?a
+                  Contraseña
                   <input
                     type="password"
                     value={password}
@@ -247,7 +247,7 @@ export function AuthPage({
 
             {mfaRequired && (
               <label>
-                C?digo TOTP
+                Código TOTP
                 <input
                   className="auth-code-input"
                   type="text"
@@ -289,7 +289,7 @@ export function AuthPage({
                 : bootstrapRequired
                   ? 'Crear administrador'
                   : mfaRequired
-                    ? 'Verificar c?digo'
+                    ? 'Verificar código'
                     : 'Ingresar'}
             </button>
 
@@ -305,13 +305,13 @@ export function AuthPage({
                   setError(null)
                 }}
               >
-                Volver al inicio de sesi?n
+                Volver al inicio de sesión
               </button>
             )}
           </form>
 
           <div className="auth-security-note">
-            La sesi?n se conserva ?nicamente mientras
+            La sesión se conserva únicamente mientras
             NEXUS permanece abierto. El token no se
             guarda en almacenamiento persistente del
             navegador.

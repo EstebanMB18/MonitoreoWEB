@@ -7,6 +7,12 @@ import type {
 } from '../types/api'
 
 import type {
+  DailyHistoryResponse,
+  DailyMonitorHistoryResponse,
+  HistoryFilters,
+} from '../types/history'
+
+import type {
   AuthStatus,
   AuthUser,
   BootstrapRequest,
@@ -108,6 +114,74 @@ export const api = {
 
   runDetail: (runId: string) =>
     request<RunDetail>(`/api/runs/${runId}`),
+
+  historyDaily: (
+    filters: HistoryFilters = {},
+  ) => {
+    const params = new URLSearchParams()
+
+    if (filters.monitor) {
+      params.set('monitor', filters.monitor)
+    }
+
+    if (filters.start_date) {
+      params.set(
+        'start_date',
+        filters.start_date,
+      )
+    }
+
+    if (filters.end_date) {
+      params.set(
+        'end_date',
+        filters.end_date,
+      )
+    }
+
+    const query = params.toString()
+
+    return request<DailyHistoryResponse>(
+      `/api/history/daily${
+        query ? `?${query}` : ''
+      }`,
+    )
+  },
+
+  historyMonitor: (
+    monitor: string,
+    filters: HistoryFilters = {},
+  ) => {
+    const params = new URLSearchParams()
+
+    if (filters.closure_date) {
+      params.set(
+        'closure_date',
+        filters.closure_date,
+      )
+    }
+
+    if (filters.start_date) {
+      params.set(
+        'start_date',
+        filters.start_date,
+      )
+    }
+
+    if (filters.end_date) {
+      params.set(
+        'end_date',
+        filters.end_date,
+      )
+    }
+
+    const query = params.toString()
+
+    return request<DailyMonitorHistoryResponse>(
+      `/api/history/daily/${encodeURIComponent(
+        monitor,
+      )}${query ? `?${query}` : ''}`,
+    )
+  },
 
   authStatus: () =>
     request<AuthStatus>('/api/auth/status'),

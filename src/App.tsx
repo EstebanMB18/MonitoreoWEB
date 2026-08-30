@@ -7,6 +7,7 @@ import {
 import { AppShell } from './layouts/AppShell'
 import { AuthPage } from './pages/AuthPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { HistoryPage } from './pages/HistoryPage'
 import { MonitorDetailPage } from './pages/MonitorDetailPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 
@@ -146,7 +147,7 @@ function App() {
         <div className="auth-loading-card">
           <strong>NEXUS</strong>
           <span>
-            Validando configuraci?n local...
+            Validando configuración local...
           </span>
         </div>
       </main>
@@ -205,7 +206,7 @@ function App() {
         <PlaceholderPage
           eyebrow="Alertas"
           title="Alertas"
-          description="Gesti?n de alertas activas e hist?ricas."
+          description="Gestión de alertas activas e históricas."
         />
       )
       break
@@ -213,21 +214,15 @@ function App() {
     case 'trends':
       page = (
         <PlaceholderPage
-          eyebrow="An?lisis"
+          eyebrow="Análisis"
           title="Tendencias"
-          description="Evoluci?n hist?rica y comportamiento de los monitores."
+          description="Evolución histórica y comportamiento de los monitores."
         />
       )
       break
 
     case 'history':
-      page = (
-        <PlaceholderPage
-          eyebrow="Hist?rico"
-          title="Hist?rico"
-          description="Consulta de ejecuciones y resultados anteriores."
-        />
-      )
+      page = <HistoryPage />
       break
 
     case 'monitors':
@@ -244,9 +239,9 @@ function App() {
       page =
         currentUser.role === 'ADMIN' ? (
           <PlaceholderPage
-            eyebrow="Administraci?n"
-            title="Administraci?n"
-            description="Usuarios, roles y administraci?n de NEXUS."
+            eyebrow="Administración"
+            title="Administración"
+            description="Usuarios, roles y administración de NEXUS."
           />
         ) : (
           <PlaceholderPage
@@ -261,7 +256,7 @@ function App() {
       page = (
         <PlaceholderPage
           eyebrow="Preferencias"
-          title="Configuraci?n"
+          title="Configuración"
           description="Temas, carpetas, credenciales y preferencias de NEXUS."
         />
       )

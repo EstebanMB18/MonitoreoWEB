@@ -1,5 +1,6 @@
-import type {
-  ReactNode,
+import {
+  useState,
+  type ReactNode,
 } from 'react'
 
 import type { AuthUser } from '../types/auth'
@@ -17,6 +18,7 @@ interface AppShellProps {
 interface NavigationItem {
   view: AppView
   label: string
+  shortLabel: string
   adminOnly?: boolean
 }
 
@@ -24,31 +26,38 @@ const navigation: NavigationItem[] = [
   {
     view: 'dashboard',
     label: 'Centro de Monitoreo',
+    shortLabel: 'CM',
   },
   {
     view: 'alerts',
     label: 'Alertas',
+    shortLabel: 'AL',
   },
   {
     view: 'trends',
     label: 'Tendencias',
+    shortLabel: 'TR',
   },
   {
     view: 'history',
-    label: 'Hist?rico',
+    label: 'Histórico',
+    shortLabel: 'HI',
   },
   {
     view: 'monitors',
     label: 'Monitores',
+    shortLabel: 'MO',
   },
   {
     view: 'admin',
-    label: 'Administraci?n',
+    label: 'Administración',
+    shortLabel: 'AD',
     adminOnly: true,
   },
   {
     view: 'settings',
-    label: 'Configuraci?n',
+    label: 'Configuración',
+    shortLabel: 'CF',
   },
 ]
 
@@ -67,6 +76,9 @@ export function AppShell({
   currentUser,
   onLogout,
 }: AppShellProps) {
+  const [sidebarCollapsed, setSidebarCollapsed] =
+    useState(false)
+
   const visibleNavigation =
     navigation.filter(
       (item) =>
@@ -91,41 +103,99 @@ export function AppShell({
     }).format(now)
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div
+      className={
+        sidebarCollapsed
+          ? 'app-shell sidebar-collapsed'
+          : 'app-shell'
+      }
+    >
+      <aside
+        className={
+          sidebarCollapsed
+            ? 'sidebar collapsed'
+            : 'sidebar'
+        }
+      >
         <div className="brand">
-          <div className="brand-mark">N</div>
+          <div className="brand-main">
+            <div className="brand-mark">
+              N
+            </div>
 
-          <div>
-            <strong>NEXUS</strong>
-            <span>
-              Centro de Monitoreo
-            </span>
+            <div className="brand-copy">
+              <strong>NEXUS</strong>
+              <span>
+                Centro de Monitoreo
+              </span>
+            </div>
           </div>
+
+          <button
+            type="button"
+            className="sidebar-toggle"
+            aria-label={
+              sidebarCollapsed
+                ? 'Mostrar men?'
+                : 'Ocultar men?'
+            }
+            title={
+              sidebarCollapsed
+                ? 'Mostrar men?'
+                : 'Ocultar men?'
+            }
+            onClick={() =>
+              setSidebarCollapsed(
+                (current) => !current,
+              )
+            }
+          >
+            <span />
+            <span />
+            <span />
+          </button>
         </div>
 
         <nav className="sidebar-nav">
           {visibleNavigation.map(
-            (item) => (
-              <button
-                key={item.view}
-                type="button"
-                className={
-                  activeView === item.view ||
-                  (item.view ===
-                    'dashboard' &&
-                    activeView ===
-                      'monitor-detail')
-                    ? 'nav-item active'
-                    : 'nav-item'
-                }
-                onClick={() =>
-                  onNavigate(item.view)
-                }
-              >
-                {item.label}
-              </button>
-            ),
+            (item) => {
+              const active =
+                activeView === item.view ||
+                (item.view === 'dashboard' &&
+                  activeView ===
+                    'monitor-detail')
+
+              return (
+                <button
+                  key={item.view}
+                  type="button"
+                  title={
+                    sidebarCollapsed
+                      ? item.label
+                      : undefined
+                  }
+                  className={
+                    active
+                      ? 'nav-item active'
+                      : 'nav-item'
+                  }
+                  onClick={() =>
+                    onNavigate(item.view)
+                  }
+                >
+                  <span
+                    className="nav-symbol"
+                    aria-hidden="true"
+                  >
+                    {item.shortLabel}
+                  </span>
+
+                  <span className="nav-label">
+                    {item.label}
+                  </span>
+                </button>
+              )
+            },
           )}
         </nav>
 
@@ -142,8 +212,9 @@ export function AppShell({
             <strong>
               {backendOnline
                 ? 'Backend conectado'
-                : 'Backend sin conexi?n'}
+                : 'Backend sin conexión'}
             </strong>
+
             <span>Modo local</span>
           </div>
         </div>
@@ -173,7 +244,7 @@ export function AppShell({
               className="logout-button"
               onClick={onLogout}
             >
-              Cerrar sesi?n
+              Cerrar sesión
             </button>
           </div>
         </header>
