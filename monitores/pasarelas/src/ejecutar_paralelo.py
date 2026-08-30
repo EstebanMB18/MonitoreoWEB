@@ -114,6 +114,11 @@ def main():
     ap.add_argument("--corte", choices=["09","13","17"], default="09")
     ap.add_argument("--hora-inicio", default="00:00")
     ap.add_argument("--hora-fin", default="23:59")
+    ap.add_argument(
+        "--no-publicar",
+        action="store_true",
+        help="Genera resultados locales pero no copia archivos a SharePoint/OneDrive.",
+    )
     args = ap.parse_args()
 
     for p in config.DESCARGAS.glob("*"):
@@ -170,7 +175,10 @@ def main():
         failed.append("PAYU")
 
     # Consolidar únicamente cuando TODO terminó.
-    df, html, excel = procesar_archivos(corte=args.corte)
+    df, html, excel = procesar_archivos(
+        corte=args.corte,
+        publicar=not args.no_publicar,
+    )
 
     print("")
     print(f"Consolidado Pasarelas: {html}")

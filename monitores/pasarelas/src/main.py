@@ -99,7 +99,7 @@ def actualizar_historico_corte(df, corte='09'):
 
 
 
-def procesar_archivos(corte='09'):
+def procesar_archivos(corte='09', publicar=True):
     verticales = cargar_verticales()
     resultados = []
     files = list(config.DESCARGAS.glob('*'))
@@ -196,7 +196,10 @@ def procesar_archivos(corte='09'):
     out_html = generar_html(df)
     print(f'HTML generado: {out_html}')
     print(f'Excel generado: {out_excel}')
-    publicar_salida(out_html, out_excel)
+    if publicar:
+        publicar_salida(out_html, out_excel)
+    else:
+        print('Publicaci?n oficial omitida: ejecuci?n en modo local/operator.')
     return df, out_html, out_excel
 
 
