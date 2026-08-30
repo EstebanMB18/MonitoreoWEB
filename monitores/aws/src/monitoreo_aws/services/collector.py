@@ -59,6 +59,8 @@ def recolectar(cfg: dict, ventana) -> dict:
         ("mensajeria_400_por_hora", p, groups["corporativoprod"]["apimensajeria"]),
         ("mensajeria_200_por_hora", p, groups["corporativoprod"]["apimensajeria"]),
         ("tup_por_hora", i, groups["interopprod"]["tarjetatup"]),
+        ("tup_total_por_hora", i, groups["interopprod"]["tarjetatup"]),
+        ("tup_resumen", i, groups["interopprod"]["tarjetatup"]),
         ("pagos_errores_por_hora", i, groups["interopprod"]["apiorqpagos"]),
         ("replicador_por_hora", p, groups["corporativoprod"]["replicador"]),
         ("serviciosred_resumen", i, groups["interopprod"]["serviciosred"]),
@@ -111,5 +113,49 @@ def recolectar(cfg: dict, ventana) -> dict:
         result["detalles"]["serviciosred_ultima_hora"] = []
         result["detalles"]["serviciosred_10m_ultima_hora"] = []
         result["errores_consulta"].append(f"serviciosred_ultima_hora: {exc}")
+
+    # Tarjeta TUP: agregados de los ultimos 60 minutos.
+    # Solo se conservan buckets numericos; no payloads crudos.
+    try:
+        from datetime import timedelta
+
+        tup_ini = max(
+            ini,
+            fin - timedelta(minutes=60),
+        )
+
+        result["detalles"]["tup_total_10m_ultima_hora"] = (
+            ejecutar_query(
+                i,
+                groups["interopprod"]["tarjetatup"],
+                DETAIL_QUERIES["tup_total_10m"],
+                tup_ini,
+                fin,
+            )
+        )
+
+        result["detalles"]["tup_errores_10m_ultima_hora"] = (
+            ejecutar_query(
+                i,
+                groups["interopprod"]["tarjetatup"],
+                DETAIL_QUERIES["tup_errores_10m"],
+                tup_ini,
+                fin,
+            )
+        )
+
+    except Exception as exc:
+        result["detalles"][
+            "tup_total_10m_ultima_hora"
+        ] = []
+
+        result["detalles"][
+            "tup_errores_10m_ultima_hora"
+        ] = []
+
+        result["errores_consulta"].append(
+            f"tup_10m_ultima_hora: {exc}"
+        )
+
 
     return result

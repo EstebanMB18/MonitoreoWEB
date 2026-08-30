@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import copy
 import json
@@ -848,12 +848,9 @@ class AWSMonitor(BaseMonitor):
                 "services": services,
             })
 
-        detail_series = {
-            key: self._json_safe(value)
-            for key, value in (
-                self.data.get("detalles", {}) or {}
-            ).items()
-        }
+        detail_series = (
+            self._build_safe_series()
+        )
 
         return {
             "summary": {
@@ -878,6 +875,402 @@ class AWSMonitor(BaseMonitor):
             ],
             "series": detail_series,
         }
+
+    @staticmethod
+    def _series_int(value) -> int:
+        try:
+            return int(float(value or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    @classmethod
+    def _safe_count_rows(
+        cls,
+        rows,
+    ) -> list[dict]:
+        result = []
+
+        for row in rows or []:
+            if not isinstance(row, dict):
+                continue
+
+            item = {}
+
+            if row.get("hora") is not None:
+                item["hora"] = str(
+                    row.get("hora")
+                )
+
+            if row.get("count") is not None:
+                item["count"] = cls._series_int(
+                    row.get("count")
+                )
+
+            if (
+                row.get("ultima_notificacion")
+                is not None
+            ):
+                item["ultima_notificacion"] = str(
+                    row.get(
+                        "ultima_notificacion"
+                    )
+                )
+
+            if row.get("desde") is not None:
+                item["desde"] = str(
+                    row.get("desde")
+                )
+
+            if row.get("hasta") is not None:
+                item["hasta"] = str(
+                    row.get("hasta")
+                )
+
+            if item:
+                result.append(item)
+
+        return result
+
+    @classmethod
+    def _safe_messaging_rows(
+        cls,
+        rows,
+    ) -> list[dict]:
+        safe = []
+
+        for row in rows or []:
+            if not isinstance(row, dict):
+                continue
+
+            safe.append({
+                "id_consumer": str(
+                    row.get(
+                        "IdConsumer",
+                        "",
+                    )
+                ),
+                "broker": str(
+                    row.get(
+                        "MessageIn.configS3.Broker",
+                        "",
+                    )
+                ),
+                "httpcode": str(
+                    row.get(
+                        "Httpcode",
+                        "",
+                    )
+                ),
+                "operacion": str(
+                    row.get(
+                        "OperationInvokerName",
+                        "",
+                    )
+                ),
+                "count": cls._series_int(
+                    row.get("count")
+                ),
+                "desde": str(
+                    row.get(
+                        "desde",
+                        "",
+                    )
+                ),
+                "hasta": str(
+                    row.get(
+                        "hasta",
+                        "",
+                    )
+                ),
+            })
+
+        return safe
+
+    @classmethod
+    def _rows_by_hour(
+        cls,
+        rows,
+    ) -> dict[str, int]:
+        result = {}
+
+        for row in rows or []:
+            if not isinstance(row, dict):
+                continue
+
+            hour = str(
+                row.get("hora", "")
+            ).strip()
+
+            if not hour:
+                continue
+
+            result[hour] = cls._series_int(
+                row.get("count")
+            )
+
+        return result
+
+    def _build_tup_hourly_series(
+        self,
+        details: dict,
+    ) -> list[dict]:
+        errors = self._rows_by_hour(
+            details.get(
+                "tup_por_hora",
+                [],
+            )
+        )
+
+        totals = self._rows_by_hour(
+            details.get(
+                "tup_total_por_hora",
+                [],
+            )
+        )
+
+        reference = self._rows_by_hour(
+            details.get(
+                "serviciosred_por_hora",
+                [],
+            )
+        )
+
+        hours = sorted(
+            set(errors)
+            | set(totals)
+            | set(reference)
+        )
+
+        result = []
+
+        for hour in hours:
+            total = totals.get(hour, 0)
+            error = errors.get(hour, 0)
+
+            result.append({
+                "hora": hour,
+                "aprobadas": max(
+                    total - error,
+                    0,
+                ),
+                "errores": error,
+                "total": total,
+            })
+
+        return result
+
+    def _build_tup_10m_series(
+        self,
+        details: dict,
+    ) -> list[dict]:
+        errors = self._rows_by_hour(
+            details.get(
+                "tup_errores_10m_ultima_hora",
+                [],
+            )
+        )
+
+        totals = self._rows_by_hour(
+            details.get(
+                "tup_total_10m_ultima_hora",
+                [],
+            )
+        )
+
+        reference = self._rows_by_hour(
+            details.get(
+                "serviciosred_10m_ultima_hora",
+                [],
+            )
+        )
+
+        hours = sorted(
+            set(errors)
+            | set(totals)
+            | set(reference)
+        )
+
+        return [
+            {
+                "hora": hour,
+                "aprobadas": max(
+                    totals.get(hour, 0)
+                    - errors.get(hour, 0),
+                    0,
+                ),
+                "errores": errors.get(
+                    hour,
+                    0,
+                ),
+                "total": totals.get(
+                    hour,
+                    0,
+                ),
+            }
+            for hour in hours
+        ]
+
+    def _build_tup_summary(
+        self,
+        details: dict,
+        hourly: list[dict],
+    ) -> list[dict]:
+        raw_summary = (
+            details.get(
+                "tup_resumen",
+                [],
+            )
+            or []
+        )
+
+        first = (
+            raw_summary[0]
+            if (
+                raw_summary
+                and isinstance(
+                    raw_summary[0],
+                    dict,
+                )
+            )
+            else {}
+        )
+
+        total = self._series_int(
+            first.get("count")
+        )
+
+        errors = self._series_int(
+            (
+                self.data.get(
+                    "metricas",
+                    {},
+                )
+                or {}
+            ).get(
+                "tup_error"
+            )
+        )
+
+        approved = max(
+            total - errors,
+            0,
+        )
+
+        if hourly:
+            peak_row = max(
+                hourly,
+                key=lambda row: (
+                    self._series_int(
+                        row.get("total")
+                    )
+                ),
+            )
+
+            peak = self._series_int(
+                peak_row.get("total")
+            )
+
+            peak_hour = (
+                peak_row.get("hora")
+                if peak > 0
+                else None
+            )
+        else:
+            peak = 0
+            peak_hour = None
+
+        last_transaction = (
+            first.get(
+                "ultima_transaccion"
+            )
+            or None
+        )
+
+        return [{
+            "aprobadas": approved,
+            "errores": errors,
+            "total": total,
+            "pico": peak,
+            "hora_pico": peak_hour,
+            "ultima_transaccion": (
+                str(last_transaction)
+                if last_transaction
+                else None
+            ),
+        }]
+
+    def _build_safe_series(self) -> dict:
+        details = dict(
+            self.data.get(
+                "detalles",
+                {},
+            )
+            or {}
+        )
+
+        safe = {}
+
+        for key in (
+            "mensajeria_400_por_hora",
+            "mensajeria_200_por_hora",
+            "pagos_errores_por_hora",
+            "replicador_por_hora",
+            "serviciosred_resumen",
+            "serviciosred_por_hora",
+            "serviciosred_ultima_hora",
+            "serviciosred_10m_ultima_hora",
+        ):
+            safe[key] = (
+                self._safe_count_rows(
+                    details.get(
+                        key,
+                        [],
+                    )
+                )
+            )
+
+        safe["mensajeria_errores"] = (
+            self._safe_messaging_rows(
+                details.get(
+                    "mensajeria_errores",
+                    [],
+                )
+            )
+        )
+
+        safe["mensajeria_exitos"] = (
+            self._safe_messaging_rows(
+                details.get(
+                    "mensajeria_exitos",
+                    [],
+                )
+            )
+        )
+
+        tup_hourly = (
+            self._build_tup_hourly_series(
+                details
+            )
+        )
+
+        safe["tup_por_hora"] = (
+            tup_hourly
+        )
+
+        safe["tup_10m_ultima_hora"] = (
+            self._build_tup_10m_series(
+                details
+            )
+        )
+
+        safe["tup_resumen"] = (
+            self._build_tup_summary(
+                details,
+                tup_hourly,
+            )
+        )
+
+        return safe
 
     @staticmethod
     def _alert_to_text(alert) -> str:
