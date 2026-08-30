@@ -10,6 +10,7 @@ interface MonitorCardProps {
   runError?: string | null
   starting?: boolean
   onRun?: (monitorId: string) => void
+  canExecuteManual?: boolean
   onViewDetail?: (monitorId: string) => void
 }
 
@@ -40,6 +41,7 @@ export function MonitorCard({
   runError,
   starting = false,
   onRun,
+  canExecuteManual = false,
   onViewDetail,
 }: MonitorCardProps) {
   const visibleRun = activeRun ?? null
@@ -65,11 +67,13 @@ export function MonitorCard({
     activeStates.has(visibleRun.status)
 
   const canRun =
+    canExecuteManual &&
     monitor.id === 'aws' &&
     monitor.enabled &&
     monitor.supports_manual_run &&
     !isActive &&
     !starting
+
 
   return (
     <article className="monitor-card">
@@ -164,7 +168,8 @@ export function MonitorCard({
             Ver detalle
           </button>
 
-          {monitor.id === 'aws' && (
+          {monitor.id === 'aws' &&
+            canExecuteManual && (
             <button
               type="button"
               className="run-button"

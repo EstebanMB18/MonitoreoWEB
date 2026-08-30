@@ -1,61 +1,201 @@
-﻿import { useCallback, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from 'react'
 
 import { AppShell } from './layouts/AppShell'
+import { AuthPage } from './pages/AuthPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { MonitorDetailPage } from './pages/MonitorDetailPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 
+import { api } from './services/api'
+import { clearAccessToken } from './services/authSession'
+
 import type { DashboardMonitor } from './types/api'
+import type {
+  AuthStatus,
+  AuthUser,
+} from './types/auth'
 import type { AppView } from './types/navigation'
 
 function App() {
-  const [backendOnline, setBackendOnline] = useState(false)
+  const [authReady, setAuthReady] =
+    useState(false)
+
+  const [authStatus, setAuthStatus] =
+    useState<AuthStatus | null>(null)
+
+  const [currentUser, setCurrentUser] =
+    useState<AuthUser | null>(null)
+
+  const [authError, setAuthError] =
+    useState<string | null>(null)
+
+  const [backendOnline, setBackendOnline] =
+    useState(false)
+
   const [activeView, setActiveView] =
     useState<AppView>('dashboard')
 
   const [selectedMonitor, setSelectedMonitor] =
     useState<DashboardMonitor | null>(null)
 
-  const handleBackendStatusChange = useCallback(
-    (online: boolean) => {
-      setBackendOnline(online)
-    },
-    [],
-  )
+  const loadAuthStatus =
+    useCallback(async () => {
+      setAuthError(null)
 
-  const handleNavigate = useCallback((view: AppView) => {
-    setActiveView(view)
+      try {
+        const status = await api.authStatus()
+        setAuthStatus(status)
+        setBackendOnline(true)
+      } catch (err) {
+        setBackendOnline(false)
 
-    if (view !== 'monitor-detail') {
+        setAuthError(
+          err instanceof Error
+            ? err.message
+            : 'No fue posible conectar con NEXUS.',
+        )
+      } finally {
+        setAuthReady(true)
+      }
+    }, [])
+
+  useEffect(() => {
+    const initialAuthLoad =
+      window.setTimeout(() => {
+        void loadAuthStatus()
+      }, 0)
+
+    const handleExpired = () => {
+      clearAccessToken()
+      setCurrentUser(null)
+      setActiveView('dashboard')
       setSelectedMonitor(null)
     }
-  }, [])
 
-  const handleViewMonitor = useCallback(
-    async (monitorId: string) => {
+    window.addEventListener(
+      'nexus:auth-expired',
+      handleExpired,
+    )
+
+    return () => {
+      window.clearTimeout(initialAuthLoad)
+
+      window.removeEventListener(
+        'nexus:auth-expired',
+        handleExpired,
+      )
+    }
+  }, [loadAuthStatus])
+
+  const handleBackendStatusChange =
+    useCallback((online: boolean) => {
+      setBackendOnline(online)
+    }, [])
+
+  const handleNavigate =
+    useCallback((view: AppView) => {
+      setActiveView(view)
+
+      if (view !== 'monitor-detail') {
+        setSelectedMonitor(null)
+      }
+    }, [])
+
+  const handleViewMonitor =
+    useCallback(async (monitorId: string) => {
       try {
-        const response = await fetch(
-          'http://127.0.0.1:8000/api/dashboard',
-        )
-
-        const dashboard = (await response.json()) as {
-          monitors: DashboardMonitor[]
-        }
+        const dashboard =
+          await api.dashboard()
 
         const monitor =
           dashboard.monitors.find(
-            (item) => item.id === monitorId,
+            (item) =>
+              item.id === monitorId,
           ) ?? null
 
         setSelectedMonitor(monitor)
-        setActiveView('monitor-detail')
       } catch {
         setSelectedMonitor(null)
-        setActiveView('monitor-detail')
       }
-    },
-    [],
-  )
+
+      setActiveView('monitor-detail')
+    }, [])
+
+  const handleLogout =
+    useCallback(async () => {
+      try {
+        await api.logout()
+      } catch {
+        // Limpiar localmente aunque el backend
+        // ya haya invalidado o expirado el token.
+      } finally {
+        clearAccessToken()
+        setCurrentUser(null)
+        setActiveView('dashboard')
+        setSelectedMonitor(null)
+      }
+    }, [])
+
+  if (!authReady) {
+    return (
+      <main className="auth-loading-screen">
+        <div className="auth-loading-card">
+          <strong>NEXUS</strong>
+          <span>
+            Validando configuraci?n local...
+          </span>
+        </div>
+      </main>
+    )
+  }
+
+  if (!authStatus) {
+    return (
+      <main className="auth-loading-screen">
+        <div className="auth-loading-card">
+          <strong>NEXUS no disponible</strong>
+          <span>
+            {authError ??
+              'No fue posible conectar con el backend.'}
+          </span>
+
+          <button
+            type="button"
+            onClick={() => {
+              setAuthReady(false)
+              void loadAuthStatus()
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      </main>
+    )
+  }
+
+  if (
+    authStatus.bootstrap_required ||
+    !currentUser
+  ) {
+    return (
+      <AuthPage
+        bootstrapRequired={
+          authStatus.bootstrap_required
+        }
+        onAuthenticated={setCurrentUser}
+        onBootstrapComplete={
+          loadAuthStatus
+        }
+      />
+    )
+  }
+
+  const canExecuteManual =
+    currentUser.role !== 'CONSULTA'
 
   let page
 
@@ -65,7 +205,7 @@ function App() {
         <PlaceholderPage
           eyebrow="Alertas"
           title="Alertas"
-          description="Gestión de alertas activas e históricas."
+          description="Gesti?n de alertas activas e hist?ricas."
         />
       )
       break
@@ -73,9 +213,9 @@ function App() {
     case 'trends':
       page = (
         <PlaceholderPage
-          eyebrow="Análisis"
+          eyebrow="An?lisis"
           title="Tendencias"
-          description="Evolución histórica y comportamiento de los monitores."
+          description="Evoluci?n hist?rica y comportamiento de los monitores."
         />
       )
       break
@@ -83,8 +223,8 @@ function App() {
     case 'history':
       page = (
         <PlaceholderPage
-          eyebrow="Histórico"
-          title="Histórico"
+          eyebrow="Hist?rico"
+          title="Hist?rico"
           description="Consulta de ejecuciones y resultados anteriores."
         />
       )
@@ -101,21 +241,28 @@ function App() {
       break
 
     case 'admin':
-      page = (
-        <PlaceholderPage
-          eyebrow="Administración"
-          title="Administración"
-          description="Configuración administrativa de NEXUS."
-        />
-      )
+      page =
+        currentUser.role === 'ADMIN' ? (
+          <PlaceholderPage
+            eyebrow="Administraci?n"
+            title="Administraci?n"
+            description="Usuarios, roles y administraci?n de NEXUS."
+          />
+        ) : (
+          <PlaceholderPage
+            eyebrow="Acceso restringido"
+            title="Sin permisos"
+            description="Tu rol no tiene permisos administrativos."
+          />
+        )
       break
 
     case 'settings':
       page = (
         <PlaceholderPage
           eyebrow="Preferencias"
-          title="Configuración"
-          description="Temas y preferencias de la aplicación."
+          title="Configuraci?n"
+          description="Temas, carpetas, credenciales y preferencias de NEXUS."
         />
       )
       break
@@ -124,7 +271,9 @@ function App() {
       page = (
         <MonitorDetailPage
           monitor={selectedMonitor}
-          onBack={() => handleNavigate('dashboard')}
+          onBack={() =>
+            handleNavigate('dashboard')
+          }
         />
       )
       break
@@ -135,7 +284,12 @@ function App() {
           onBackendStatusChange={
             handleBackendStatusChange
           }
-          onViewMonitor={handleViewMonitor}
+          onViewMonitor={
+            handleViewMonitor
+          }
+          canExecuteManual={
+            canExecuteManual
+          }
         />
       )
   }
@@ -145,6 +299,8 @@ function App() {
       backendOnline={backendOnline}
       activeView={activeView}
       onNavigate={handleNavigate}
+      currentUser={currentUser}
+      onLogout={handleLogout}
     >
       {page}
     </AppShell>

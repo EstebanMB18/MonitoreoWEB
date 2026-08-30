@@ -21,6 +21,7 @@ import { parseAlert } from '../utils/alerts'
 interface DashboardPageProps {
   onBackendStatusChange: (online: boolean) => void
   onViewMonitor: (monitorId: string) => void
+  canExecuteManual: boolean
 }
 
 const terminalStates = new Set<RunStatus>([
@@ -36,6 +37,7 @@ const terminalStates = new Set<RunStatus>([
 export function DashboardPage({
   onBackendStatusChange,
   onViewMonitor,
+  canExecuteManual,
 }: DashboardPageProps) {
   const [health, setHealth] =
     useState<HealthResponse | null>(null)
@@ -330,7 +332,14 @@ export function DashboardPage({
                     monitor.id
                   ] ?? false
                 }
-                onRun={runMonitor}
+                onRun={
+                  canExecuteManual
+                    ? runMonitor
+                    : undefined
+                }
+                canExecuteManual={
+                  canExecuteManual
+                }
                 onViewDetail={onViewMonitor}
               />
             ),
