@@ -1,11 +1,13 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from api.auth_dependencies import require_roles
 
 from core.platform import (
     InstallationMode,
@@ -88,6 +90,9 @@ def get_settings():
 @router.put("/settings")
 def update_settings(
     payload: SettingsUpdate,
+    user: dict = Depends(
+        require_roles("ADMIN")
+    ),
 ):
     values = payload.model_dump(
         exclude_unset=True
@@ -176,6 +181,9 @@ def secret_status(
 def update_secret(
     provider: str,
     payload: SecretUpdate,
+    user: dict = Depends(
+        require_roles("ADMIN")
+    ),
 ):
     provider = _provider(
         provider
@@ -230,6 +238,9 @@ def update_secret(
 @router.delete("/secrets/{provider}")
 def delete_secret(
     provider: str,
+    user: dict = Depends(
+        require_roles("ADMIN")
+    ),
 ):
     provider = _provider(
         provider

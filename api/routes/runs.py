@@ -1,9 +1,11 @@
 from pathlib import Path
 from enum import Enum
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+
+from api.auth_dependencies import require_roles
 
 from api.runtime import (
     MONITOR_REGISTRY,
@@ -108,6 +110,13 @@ class RunRequest(BaseModel):
 def run_monitor(
     monitor_id: str,
     payload: RunRequest,
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+            "OPERADOR",
+        )
+    ),
 ):
     key = monitor_id.lower()
 
