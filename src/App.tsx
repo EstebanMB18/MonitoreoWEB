@@ -20,8 +20,20 @@ import type {
   AuthUser,
 } from './types/auth'
 import type { AppView } from './types/navigation'
+import type { ThemeMode } from './types/theme'
+import {
+  applyTheme,
+  readThemeMode,
+  saveThemeMode,
+} from './utils/theme'
+import { SettingsPage } from './pages/SettingsPage'
 
 function App() {
+  const [themeMode, setThemeMode] =
+    useState<ThemeMode>(() =>
+      readThemeMode(),
+    )
+
   const [authReady, setAuthReady] =
     useState(false)
 
@@ -63,6 +75,22 @@ function App() {
         setAuthReady(true)
       }
     }, [])
+
+  useEffect(() => {
+    applyTheme(themeMode)
+    saveThemeMode(themeMode)
+
+    const timer =
+      window.setInterval(() => {
+        if (themeMode === 'AUTO') {
+          applyTheme(themeMode)
+        }
+      }, 60000)
+
+    return () => {
+      window.clearInterval(timer)
+    }
+  }, [themeMode])
 
   useEffect(() => {
     const initialAuthLoad =
@@ -254,10 +282,11 @@ function App() {
 
     case 'settings':
       page = (
-        <PlaceholderPage
-          eyebrow="Preferencias"
-          title="Configuración"
-          description="Temas, carpetas, credenciales y preferencias de NEXUS."
+        <SettingsPage
+          themeMode={themeMode}
+          onThemeModeChange={
+            setThemeMode
+          }
         />
       )
       break
@@ -296,6 +325,8 @@ function App() {
       onNavigate={handleNavigate}
       currentUser={currentUser}
       onLogout={handleLogout}
+      themeMode={themeMode}
+      onThemeModeChange={setThemeMode}
     >
       {page}
     </AppShell>

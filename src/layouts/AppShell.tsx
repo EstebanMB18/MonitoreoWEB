@@ -3,8 +3,11 @@ import {
   type ReactNode,
 } from 'react'
 
+import { CompensarBrand } from '../components/CompensarBrand'
+
 import type { AuthUser } from '../types/auth'
 import type { AppView } from '../types/navigation'
+import type { ThemeMode } from '../types/theme'
 
 interface AppShellProps {
   children: ReactNode
@@ -13,6 +16,8 @@ interface AppShellProps {
   onNavigate: (view: AppView) => void
   currentUser: AuthUser
   onLogout: () => void
+  themeMode: ThemeMode
+  onThemeModeChange: (mode: ThemeMode) => void
 }
 
 interface NavigationItem {
@@ -75,6 +80,8 @@ export function AppShell({
   onNavigate,
   currentUser,
   onLogout,
+  themeMode,
+  onThemeModeChange,
 }: AppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] =
     useState(false)
@@ -117,6 +124,10 @@ export function AppShell({
             : 'sidebar'
         }
       >
+        <div className="corporate-brand">
+          <CompensarBrand />
+        </div>
+
         <div className="brand">
           <div className="brand-main">
             <div className="brand-mark">
@@ -225,6 +236,27 @@ export function AppShell({
           <div className="topbar-date">
             <strong>{dateLabel}</strong>
             <span>{timeLabel}</span>
+          </div>
+
+          <div className="topbar-theme-control">
+            <span>Tema</span>
+
+            <select
+              aria-label="Tema de NEXUS"
+              value={themeMode}
+              onChange={(event) =>
+                onThemeModeChange(
+                  event.target.value as ThemeMode,
+                )
+              }
+            >
+              <option value="AUTO">Auto</option>
+              <option value="LIGHT">Claro</option>
+              <option value="DARK">Oscuro</option>
+              <option value="DAY">Día</option>
+              <option value="AFTERNOON">Tarde</option>
+              <option value="NIGHT">Noche</option>
+            </select>
           </div>
 
           <div className="topbar-user">

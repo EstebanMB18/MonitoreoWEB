@@ -112,5 +112,6 @@ export interface RunDetail {
 
   outputs: Record<string, string>
   metadata: Record<string, unknown>
+  details?: unknown
   events: RunEvent[]
 }

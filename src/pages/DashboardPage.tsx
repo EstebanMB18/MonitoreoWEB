@@ -17,6 +17,7 @@ import type {
 } from '../types/api'
 
 import { parseAlert } from '../utils/alerts'
+import { CaptureOverview } from '../components/CaptureOverview'
 
 interface DashboardPageProps {
   onBackendStatusChange: (online: boolean) => void
@@ -346,6 +347,10 @@ export function DashboardPage({
           )}
         </div>
       </section>
+
+      <CaptureOverview
+        monitors={dashboard.monitors}
+      />
 
       <section className="section-block">
         <div className="section-heading">

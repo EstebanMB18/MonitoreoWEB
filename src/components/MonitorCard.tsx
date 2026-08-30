@@ -68,7 +68,6 @@ export function MonitorCard({
 
   const canRun =
     canExecuteManual &&
-    monitor.id === 'aws' &&
     monitor.enabled &&
     monitor.supports_manual_run &&
     !isActive &&
@@ -168,8 +167,8 @@ export function MonitorCard({
             Ver detalle
           </button>
 
-          {monitor.id === 'aws' &&
-            canExecuteManual && (
+          {canExecuteManual &&
+            monitor.supports_manual_run && (
             <button
               type="button"
               className="run-button"
