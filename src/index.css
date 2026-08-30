@@ -796,3 +796,150 @@ button {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.placeholder-page h2,
+.monitor-detail-page h2 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.025em;
+}
+
+.placeholder-page > p:not(.section-eyebrow),
+.detail-hero p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.placeholder-panel {
+  margin-top: 20px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.placeholder-panel span {
+  font-weight: 700;
+}
+
+.placeholder-panel p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.detail-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.back-button {
+  border: 0;
+  background: transparent;
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.detail-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.detail-run-info {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+}
+
+.detail-run-info > div {
+  padding: 4px 22px;
+  border-left: 1px solid var(--border);
+}
+
+.detail-run-info span,
+.detail-run-info strong {
+  display: block;
+}
+
+.detail-run-info span {
+  color: var(--muted);
+  font-size: 10px;
+  margin-bottom: 5px;
+}
+
+.detail-run-info strong {
+  font-size: 12px;
+}
+
+.detail-metrics-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detail-metric-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.detail-metric-card span,
+.detail-metric-card strong {
+  display: block;
+}
+
+.detail-metric-card span {
+  color: var(--muted);
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+
+.detail-metric-card strong {
+  font-size: 19px;
+}
+
+.detail-section {
+  margin-top: 24px;
+}
+
+.detail-status-panel {
+  padding: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.detail-status-panel > div {
+  padding: 0 16px;
+}
+
+.detail-status-panel > div + div {
+  border-left: 1px solid var(--border);
+}
+
+.detail-status-panel span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+
+.detail-status-panel strong {
+  font-size: 13px;
+}

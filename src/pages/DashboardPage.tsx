@@ -20,6 +20,7 @@ import { parseAlert } from '../utils/alerts'
 
 interface DashboardPageProps {
   onBackendStatusChange: (online: boolean) => void
+  onViewMonitor: (monitorId: string) => void
 }
 
 const terminalStates = new Set<RunStatus>([
@@ -34,6 +35,7 @@ const terminalStates = new Set<RunStatus>([
 
 export function DashboardPage({
   onBackendStatusChange,
+  onViewMonitor,
 }: DashboardPageProps) {
   const [health, setHealth] =
     useState<HealthResponse | null>(null)
@@ -101,10 +103,10 @@ export function DashboardPage({
   )
 
   const pollRun = useCallback(
-    async (
+    async function pollRunTask(
       monitorId: string,
       runId: string,
-    ): Promise<void> => {
+    ): Promise<void> {
       try {
         const run = await api.runDetail(runId)
 
@@ -127,7 +129,7 @@ export function DashboardPage({
 
         pollTimers.current[monitorId] =
           window.setTimeout(() => {
-            void pollRun(monitorId, runId)
+            void pollRunTask(monitorId, runId)
           }, 2000)
       } catch (err) {
         stopPolling(monitorId)
@@ -194,6 +196,8 @@ export function DashboardPage({
   )
 
   useEffect(() => {
+    const timers = pollTimers.current
+
     const initialLoad =
       window.setTimeout(() => {
         void loadDashboard()
@@ -208,9 +212,7 @@ export function DashboardPage({
       window.clearTimeout(initialLoad)
       window.clearInterval(interval)
 
-      Object.values(
-        pollTimers.current,
-      ).forEach((timer) => {
+      Object.values(timers).forEach((timer) => {
         window.clearTimeout(timer)
       })
     }
@@ -329,6 +331,7 @@ export function DashboardPage({
                   ] ?? false
                 }
                 onRun={runMonitor}
+                onViewDetail={onViewMonitor}
               />
             ),
           )}
@@ -425,3 +428,4 @@ export function DashboardPage({
     </div>
   )
 }
+

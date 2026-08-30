@@ -10,6 +10,7 @@ interface MonitorCardProps {
   runError?: string | null
   starting?: boolean
   onRun?: (monitorId: string) => void
+  onViewDetail?: (monitorId: string) => void
 }
 
 const activeStates = new Set([
@@ -39,6 +40,7 @@ export function MonitorCard({
   runError,
   starting = false,
   onRun,
+  onViewDetail,
 }: MonitorCardProps) {
   const visibleRun = activeRun ?? null
 
@@ -157,6 +159,7 @@ export function MonitorCard({
           <button
             type="button"
             className="link-button"
+            onClick={() => onViewDetail?.(monitor.id)}
           >
             Ver detalle
           </button>
@@ -180,3 +183,4 @@ export function MonitorCard({
     </article>
   )
 }
+

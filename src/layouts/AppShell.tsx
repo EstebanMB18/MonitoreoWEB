@@ -1,23 +1,31 @@
 ﻿import type { ReactNode } from 'react'
+import type { AppView } from '../types/navigation'
 
 interface AppShellProps {
   children: ReactNode
   backendOnline: boolean
+  activeView: AppView
+  onNavigate: (view: AppView) => void
 }
 
-const navigation = [
-  'Centro de Monitoreo',
-  'Alertas',
-  'Tendencias',
-  'Histórico',
-  'Monitores',
-  'Administración',
-  'Configuración',
+const navigation: Array<{
+  label: string
+  view: AppView
+}> = [
+  { label: 'Centro de Monitoreo', view: 'dashboard' },
+  { label: 'Alertas', view: 'alerts' },
+  { label: 'Tendencias', view: 'trends' },
+  { label: 'Histórico', view: 'history' },
+  { label: 'Monitores', view: 'monitors' },
+  { label: 'Administración', view: 'admin' },
+  { label: 'Configuración', view: 'settings' },
 ]
 
 export function AppShell({
   children,
   backendOnline,
+  activeView,
+  onNavigate,
 }: AppShellProps) {
   const now = new Date()
 
@@ -34,24 +42,45 @@ export function AppShell({
         </div>
 
         <nav className="navigation">
-          {navigation.map((item, index) => (
-            <button
-              key={item}
-              type="button"
-              className={index === 0 ? 'nav-item active' : 'nav-item'}
-            >
-              <span className="nav-symbol">{index + 1}</span>
-              {item}
-            </button>
-          ))}
+          {navigation.map((item, index) => {
+            const active =
+              activeView === item.view ||
+              (item.view === 'monitors' &&
+                activeView === 'monitor-detail')
+
+            return (
+              <button
+                key={item.view}
+                type="button"
+                className={
+                  active
+                    ? 'nav-item active'
+                    : 'nav-item'
+                }
+                onClick={() => onNavigate(item.view)}
+              >
+                <span className="nav-symbol">
+                  {index + 1}
+                </span>
+
+                {item.label}
+              </button>
+            )
+          })}
         </nav>
 
         <div className="sidebar-status">
           <span>Estado del sistema</span>
 
-          <strong className={backendOnline ? 'online' : 'offline'}>
+          <strong
+            className={
+              backendOnline ? 'online' : 'offline'
+            }
+          >
             <span className="connection-dot" />
-            {backendOnline ? 'Backend conectado' : 'Backend sin conexión'}
+            {backendOnline
+              ? 'Backend conectado'
+              : 'Backend sin conexión'}
           </strong>
         </div>
       </aside>
@@ -59,7 +88,10 @@ export function AppShell({
       <main className="main-area">
         <header className="topbar">
           <div>
-            <p className="topbar-kicker">NEXUS / OPERACIÓN</p>
+            <p className="topbar-kicker">
+              NEXUS / OPERACIÓN
+            </p>
+
             <h1>Centro de Monitoreo</h1>
           </div>
 
@@ -87,6 +119,7 @@ export function AppShell({
 
             <div className="operator">
               <span className="operator-avatar">E</span>
+
               <div>
                 <strong>Operador</strong>
                 <span>Modo local</span>
