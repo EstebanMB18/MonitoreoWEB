@@ -199,7 +199,7 @@ def procesar_archivos(corte='09', publicar=True):
     if publicar:
         publicar_salida(out_html, out_excel)
     else:
-        print('Publicaci?n oficial omitida: ejecuci?n en modo local/operator.')
+        print('Publicacion oficial omitida: ejecucion en modo local/operator.')
     return df, out_html, out_excel
 
 
