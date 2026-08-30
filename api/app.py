@@ -6,6 +6,7 @@ from api.routes.health import router as health_router
 from api.routes.history import router as history_router
 from api.routes.monitors import router as monitors_router
 from api.routes.runs import router as runs_router
+from api.routes.settings import router as settings_router
 
 
 app = FastAPI(
@@ -28,4 +29,5 @@ app.include_router(health_router, prefix="/api")
 app.include_router(history_router, prefix="/api")
 app.include_router(monitors_router, prefix="/api")
 app.include_router(runs_router, prefix="/api")
+app.include_router(settings_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
