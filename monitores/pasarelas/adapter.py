@@ -233,6 +233,7 @@ class PasarelasMonitor(BaseMonitor):
         self,
     ) -> Path | None:
         candidates = [
+            SALIDA / "reporte_verticales_diario_ultimo.html",
             SALIDA / "dashboard_verticales.html",
             BASE / "reportes" / "dashboard_verticales.html",
         ]

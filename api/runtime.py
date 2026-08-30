@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from core.events import EventBus
 from core.models import RunContext
+from api.storage import list_saved_runs, save_run
 from monitores.aws.adapter import AWSMonitor
 from monitores.hercules.adapter import HerculesMonitor
 from monitores.pasarelas.adapter import PasarelasMonitor
@@ -16,7 +17,10 @@ EVENT_BUS = EventBus()
 
 LOCK = threading.RLock()
 
-RUNS: dict[str, dict[str, Any]] = {}
+RUNS: dict[str, dict[str, Any]] = {
+    item["run_id"]: item
+    for item in list_saved_runs()
+}
 MONITOR_OBJECTS: dict[str, Any] = {}
 
 
@@ -117,6 +121,8 @@ def create_run(
         RUNS[run_id] = item
         MONITOR_OBJECTS[run_id] = monitor
 
+    save_run(item)
+
     thread = threading.Thread(
         target=_execute_run,
         args=(run_id,),
@@ -153,6 +159,10 @@ def _execute_run(run_id: str) -> None:
                 "metadata": result_data.get("metadata", {}),
             })
 
+            saved = dict(RUNS[run_id])
+
+        save_run(saved)
+
     except Exception as exc:
         with LOCK:
             RUNS[run_id]["status"] = "ERROR"
@@ -161,6 +171,10 @@ def _execute_run(run_id: str) -> None:
             RUNS[run_id]["errors"] = [
                 f"{type(exc).__name__}: {exc}"
             ]
+
+            saved = dict(RUNS[run_id])
+
+        save_run(saved)
 
 
 def _sync_live_state(run_id: str) -> None:
