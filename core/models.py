@@ -50,6 +50,7 @@ class MonitorResult:
     outputs: MonitorOutput = field(default_factory=MonitorOutput)
 
     metadata: dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
     def finish(self, status: RunStatus) -> None:
         self.status = status

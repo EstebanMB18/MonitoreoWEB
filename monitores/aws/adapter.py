@@ -208,6 +208,10 @@ class AWSMonitor(BaseMonitor):
             self.alertas
         )
 
+        self.result.details = (
+            self._build_structured_details()
+        )
+
         self.logger.progress(
             78,
             "Generando reportes AWS",
@@ -478,6 +482,402 @@ class AWSMonitor(BaseMonitor):
         self.logger.info(
             f"Datos gerenciales AWS publicados: {target}"
         )
+
+    def _build_structured_details(self) -> dict:
+        metric_catalog = {
+            "aprob_creacion_payu": (
+                "INTEROPPROD",
+                "API Orquestador Pagos",
+                "Aprobados creacion PayU",
+            ),
+            "aprob_creacion_ecollect": (
+                "INTEROPPROD",
+                "API Orquestador Pagos",
+                "Aprobados creacion eCollect",
+            ),
+            "aprob_estado_payu": (
+                "INTEROPPROD",
+                "API Orquestador Pagos",
+                "Aprobados estado PayU",
+            ),
+            "aprob_estado_ecollect": (
+                "INTEROPPROD",
+                "API Orquestador Pagos",
+                "Aprobados estado eCollect",
+            ),
+            "aprob_receiver": (
+                "INTEROPPROD",
+                "API Orquestador Pagos",
+                "Aprobados Receiver",
+            ),
+            "err_creacion_payu": (
+                "INTEROPPROD",
+                "API Orquestador Pagos",
+                "Errores creacion PayU",
+            ),
+            "err_creacion_ecollect": (
+                "INTEROPPROD",
+                "API Orquestador Pagos",
+                "Errores creacion eCollect",
+            ),
+            "err_estado_payu": (
+                "INTEROPPROD",
+                "API Orquestador Pagos",
+                "Errores estado PayU",
+            ),
+            "err_estado_ecollect": (
+                "INTEROPPROD",
+                "API Orquestador Pagos",
+                "Errores estado eCollect",
+            ),
+            "err_receiver": (
+                "INTEROPPROD",
+                "API Orquestador Pagos",
+                "Errores Receiver",
+            ),
+            "err_log": (
+                "INTEROPPROD",
+                "API Orquestador Pagos",
+                "Errores log",
+            ),
+            "err_mongodb_update": (
+                "INTEROPPROD",
+                "MongoDB",
+                "Error Update MongoDB",
+            ),
+            "seg_consulta_persona": (
+                "SEGURIDAD",
+                "Modulo de Seguridad",
+                "ConsultaPersona",
+            ),
+            "error_cx": (
+                "API SUBSIDIOS",
+                "API Subsidios",
+                "Error archivo CX",
+            ),
+            "tup_error": (
+                "TARJETA TUP",
+                "Tarjeta TUP",
+                "Errores Tarjeta TUP",
+            ),
+            "serviciosred_total": (
+                "SERVICIOS RED",
+                "Servicios Red",
+                "Notificaciones del corte",
+            ),
+            "serviciosred_ultima_hora": (
+                "SERVICIOS RED",
+                "Servicios Red",
+                "Notificaciones ultima hora",
+            ),
+            "csc_task_timed": (
+                "CSC",
+                "Lambda Proxy PaymentsPost",
+                "Task timed out",
+            ),
+            "csc_504": (
+                "CSC",
+                "Lambda Proxy PaymentsPost",
+                "504 Gateway Time-out",
+            ),
+            "mens_timeout": (
+                "MENSAJERIA",
+                "API Mensajeria",
+                "Timeout",
+            ),
+            "mens_503": (
+                "MENSAJERIA",
+                "API Mensajeria",
+                "HTTP 503",
+            ),
+            "mens_502": (
+                "MENSAJERIA",
+                "API Mensajeria",
+                "HTTP 502",
+            ),
+            "mens_report": (
+                "MENSAJERIA",
+                "API Mensajeria",
+                "REPORT enviados",
+            ),
+            "mens_total_send": (
+                "MENSAJERIA",
+                "API Mensajeria",
+                "Total enviados",
+            ),
+            "mens_cannot": (
+                "MENSAJERIA",
+                "API Mensajeria",
+                "Cannot process",
+            ),
+            "mens_sms_failed": (
+                "MENSAJERIA",
+                "API Mensajeria",
+                "SMS failed",
+            ),
+            "mens_error_400_total": (
+                "MENSAJERIA",
+                "API Mensajeria",
+                "Errores HTTP 400",
+            ),
+            "mens_exitos_200_total": (
+                "MENSAJERIA",
+                "API Mensajeria",
+                "Exitos HTTP 200",
+            ),
+            "otp_408": (
+                "MENSAJERIA",
+                "API Mensajeria",
+                "OTP HTTP 408",
+            ),
+            "otp_500": (
+                "MENSAJERIA",
+                "Validar OTP",
+                "OTP HTTP 500",
+            ),
+            "replicador": (
+                "MENSAJERIA",
+                "Replicador",
+                "Replicaciones",
+            ),
+        }
+
+        metrics = dict(
+            self.data.get("metricas", {}) or {}
+        )
+
+        raw_errors = list(
+            self.data.get(
+                "errores_consulta",
+                [],
+            ) or []
+        )
+
+        technical_by_key = {}
+
+        for error in raw_errors:
+            text = str(error)
+            key = text.split(":", 1)[0].strip()
+
+            if key:
+                technical_by_key[key] = text
+
+        business_alerts = []
+
+        for alert in self.alertas:
+            if isinstance(alert, dict):
+                business_alerts.append(
+                    self._json_safe(alert)
+                )
+            else:
+                business_alerts.append({
+                    "detalle": str(alert),
+                })
+
+        severity_order = {
+            "CRITICA": 4,
+            "CRITICAL": 4,
+            "ALTA": 3,
+            "HIGH": 3,
+            "MEDIA": 2,
+            "MEDIUM": 2,
+            "INFORMATIVA": 1,
+            "INFO": 1,
+        }
+
+        def normalize_severity(value):
+            raw = str(value or "").upper()
+
+            if "CR" in raw and "TICA" in raw:
+                return "CRITICAL"
+
+            if raw in {"ALTA", "HIGH"}:
+                return "HIGH"
+
+            if raw in {"MEDIA", "MEDIUM"}:
+                return "MEDIUM"
+
+            if raw in {"INFORMATIVA", "INFO"}:
+                return "INFO"
+
+            return raw or None
+
+        groups = {}
+
+        for key, value in metrics.items():
+            (
+                group_name,
+                service_name,
+                metric_name,
+            ) = metric_catalog.get(
+                key,
+                (
+                    "AWS",
+                    "AWS",
+                    key.replace("_", " ").title(),
+                ),
+            )
+
+            technical_error = (
+                technical_by_key.get(key)
+            )
+
+            query_ok = (
+                value is not None
+                and technical_error is None
+            )
+
+            related_alerts = []
+
+            for alert in business_alerts:
+                alert_group = str(
+                    alert.get("grupo", "")
+                ).upper()
+
+                alert_service = str(
+                    alert.get("servicio", "")
+                ).upper()
+
+                if (
+                    alert_group == group_name.upper()
+                    or alert_service == service_name.upper()
+                ):
+                    related_alerts.append(alert)
+
+            severity = None
+
+            if related_alerts:
+                severities = [
+                    normalize_severity(
+                        item.get("nivel")
+                    )
+                    for item in related_alerts
+                ]
+
+                severities = [
+                    item
+                    for item in severities
+                    if item
+                ]
+
+                if severities:
+                    severity = max(
+                        severities,
+                        key=lambda item: severity_order.get(
+                            item,
+                            0,
+                        ),
+                    )
+
+            if not query_ok:
+                status = "TECHNICAL_ERROR"
+            elif severity:
+                status = "ALERT"
+            else:
+                status = "OK"
+
+            detail = None
+
+            if technical_error:
+                detail = technical_error
+            elif related_alerts:
+                detail = related_alerts[0].get(
+                    "detalle"
+                )
+
+            group = groups.setdefault(
+                group_name,
+                {
+                    "id": group_name,
+                    "name": group_name,
+                    "services": {},
+                },
+            )
+
+            service = group["services"].setdefault(
+                service_name,
+                {
+                    "id": (
+                        service_name
+                        .lower()
+                        .replace(" ", "-")
+                    ),
+                    "name": service_name,
+                    "metrics": [],
+                },
+            )
+
+            service["metrics"].append({
+                "id": key,
+                "metric": metric_name,
+                "value": self._json_safe(value),
+                "status": status,
+                "severity": severity,
+                "detail": detail,
+                "query_ok": query_ok,
+                "technical_error": technical_error,
+            })
+
+        normalized_groups = []
+
+        for group in groups.values():
+            services = []
+
+            for service in group["services"].values():
+                metrics_list = service["metrics"]
+
+                if any(
+                    item["status"] == "TECHNICAL_ERROR"
+                    for item in metrics_list
+                ):
+                    service_status = "TECHNICAL_ERROR"
+                elif any(
+                    item["status"] == "ALERT"
+                    for item in metrics_list
+                ):
+                    service_status = "ALERT"
+                else:
+                    service_status = "OK"
+
+                service["status"] = service_status
+                services.append(service)
+
+            normalized_groups.append({
+                "id": group["id"],
+                "name": group["name"],
+                "services": services,
+            })
+
+        detail_series = {
+            key: self._json_safe(value)
+            for key, value in (
+                self.data.get("detalles", {}) or {}
+            ).items()
+        }
+
+        return {
+            "summary": {
+                "total_metrics": self.total_metricas,
+                "valid_metrics": self.metricas_validas,
+                "failed_metrics": self.metricas_fallidas,
+                "business_alerts": len(
+                    business_alerts
+                ),
+                "technical_errors": len(
+                    raw_errors
+                ),
+            },
+            "groups": normalized_groups,
+            "business_alerts": business_alerts,
+            "technical_errors": [
+                {
+                    "type": "TECHNICAL_ERROR",
+                    "detail": str(error),
+                }
+                for error in raw_errors
+            ],
+            "series": detail_series,
+        }
 
     @staticmethod
     def _alert_to_text(alert) -> str:

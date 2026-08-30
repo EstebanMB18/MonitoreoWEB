@@ -157,6 +157,7 @@ def _execute_run(run_id: str) -> None:
                 "errors": result_data.get("errors", []),
                 "outputs": result_data.get("outputs", {}),
                 "metadata": result_data.get("metadata", {}),
+                "details": result_data.get("details", {}),
             })
 
             saved = dict(RUNS[run_id])
@@ -208,6 +209,11 @@ def _sync_live_state(run_id: str) -> None:
         item["status"] = data.get(
             "status",
             item.get("status"),
+        )
+
+        item["details"] = data.get(
+            "details",
+            item.get("details", {}),
         )
 
         if latest_progress is not None:

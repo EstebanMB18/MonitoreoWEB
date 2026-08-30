@@ -55,10 +55,24 @@ def init_db() -> None:
                 alerts_json TEXT,
                 errors_json TEXT,
                 outputs_json TEXT,
-                metadata_json TEXT
+                metadata_json TEXT,
+                details_json TEXT
             )
             """
         )
+
+        columns = {
+            row["name"]
+            for row in conn.execute(
+                "PRAGMA table_info(runs)"
+            ).fetchall()
+        }
+
+        if "details_json" not in columns:
+            conn.execute(
+                "ALTER TABLE runs "
+                "ADD COLUMN details_json TEXT"
+            )
 
         conn.commit()
 
@@ -88,11 +102,12 @@ def save_run(run: dict[str, Any]) -> None:
                 alerts_json,
                 errors_json,
                 outputs_json,
-                metadata_json
+                metadata_json,
+                details_json
             )
             VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
             ON CONFLICT(run_id)
             DO UPDATE SET
@@ -105,7 +120,8 @@ def save_run(run: dict[str, Any]) -> None:
                 alerts_json=excluded.alerts_json,
                 errors_json=excluded.errors_json,
                 outputs_json=excluded.outputs_json,
-                metadata_json=excluded.metadata_json
+                metadata_json=excluded.metadata_json,
+                details_json=excluded.details_json
             """,
             (
                 run.get("run_id"),
@@ -137,6 +153,10 @@ def save_run(run: dict[str, Any]) -> None:
                 ),
                 json.dumps(
                     run.get("metadata", {}),
+                    ensure_ascii=False,
+                ),
+                json.dumps(
+                    run.get("details", {}),
                     ensure_ascii=False,
                 ),
             ),
@@ -183,6 +203,9 @@ def list_saved_runs() -> list[dict[str, Any]]:
         )
         item["metadata"] = json.loads(
             item.pop("metadata_json") or "{}"
+        )
+        item["details"] = json.loads(
+            item.pop("details_json", None) or "{}"
         )
 
         items.append(item)
