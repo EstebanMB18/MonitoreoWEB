@@ -1010,6 +1010,42 @@ class AWSMonitor(BaseMonitor):
 
         return result
 
+    def _build_messaging_error_series(
+        self,
+        details: dict,
+    ) -> list[dict]:
+        errors = self._rows_by_hour(
+            details.get(
+                "mensajeria_errores_por_hora",
+                [],
+            )
+        )
+
+        successes = self._rows_by_hour(
+            details.get(
+                "mensajeria_200_por_hora",
+                [],
+            )
+        )
+
+        # Mantiene las horas donde hubo actividad
+        # de Mensajeria aunque no hubiera errores.
+        hours = sorted(
+            set(errors)
+            | set(successes)
+        )
+
+        return [
+            {
+                "hora": hour,
+                "count": errors.get(
+                    hour,
+                    0,
+                ),
+            }
+            for hour in hours
+        ]
+
     def _build_tup_hourly_series(
         self,
         details: dict,
@@ -1228,6 +1264,12 @@ class AWSMonitor(BaseMonitor):
                     )
                 )
             )
+
+        safe["mensajeria_errores_por_hora"] = (
+            self._build_messaging_error_series(
+                details
+            )
+        )
 
         safe["mensajeria_errores"] = (
             self._safe_messaging_rows(

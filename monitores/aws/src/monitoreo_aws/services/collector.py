@@ -57,6 +57,7 @@ def recolectar(cfg: dict, ventana) -> dict:
         ("mensajeria_errores", p, groups["corporativoprod"]["apimensajeria"]),
         ("mensajeria_exitos", p, groups["corporativoprod"]["apimensajeria"]),
         ("mensajeria_400_por_hora", p, groups["corporativoprod"]["apimensajeria"]),
+        ("mensajeria_errores_por_hora", p, groups["corporativoprod"]["apimensajeria"]),
         ("mensajeria_200_por_hora", p, groups["corporativoprod"]["apimensajeria"]),
         ("tup_por_hora", i, groups["interopprod"]["tarjetatup"]),
         ("tup_total_por_hora", i, groups["interopprod"]["tarjetatup"]),
