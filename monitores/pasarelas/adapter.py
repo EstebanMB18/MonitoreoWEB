@@ -182,25 +182,336 @@ class PasarelasMonitor(BaseMonitor):
 
     def validate(self) -> RunStatus:
         if self.result.errors:
-            return RunStatus.ERROR
+            status = RunStatus.ERROR
 
-        if self.df is None:
-            return RunStatus.ERROR
+        elif self.df is None:
+            status = RunStatus.ERROR
 
-        if self.result.records == 0:
-            return RunStatus.NO_DATA
+        elif self.result.records == 0:
+            status = RunStatus.NO_DATA
 
-        if self._has_process_warnings():
+        elif self._has_process_warnings():
             self.result.alerts.append(
-                "Uno o más procesos de Pasarelas "
-                "reportaron advertencias durante la ejecución."
+                "Uno o m?s procesos de Pasarelas "
+                "reportaron advertencias durante la ejecuci?n."
             )
-            return RunStatus.WARNING
+            status = RunStatus.WARNING
 
-        if self._has_business_alerts():
-            return RunStatus.WARNING
+        elif self._has_business_alerts():
+            status = RunStatus.WARNING
 
-        return RunStatus.OK
+        else:
+            status = RunStatus.OK
+
+        self.result.details = (
+            self._build_structured_details()
+        )
+
+        return status
+
+    def _build_structured_details(self) -> dict:
+        if self.df is None:
+            return {
+                "summary": {},
+                "groups": [],
+                "business_alerts": [],
+                "technical_errors": [
+                    {
+                        "type": "TECHNICAL_ERROR",
+                        "detail": str(error),
+                    }
+                    for error in self.result.errors
+                ],
+                "technical_warnings": [],
+                "series": {},
+            }
+
+        df = self.df.copy()
+
+        def clean(value):
+            try:
+                if pd.isna(value):
+                    return None
+            except Exception:
+                pass
+
+            if hasattr(value, "item"):
+                try:
+                    return value.item()
+                except Exception:
+                    pass
+
+            return value
+
+        def integer(value):
+            try:
+                return int(float(value))
+            except (TypeError, ValueError):
+                return 0
+
+        def normalize_status(value):
+            raw = str(
+                clean(value) or ""
+            ).strip().upper()
+
+            if raw in {
+                "OK",
+                "NORMAL",
+                "NORMALIDAD",
+                "VERDE",
+                "REGISTRADO",
+            }:
+                return "OK"
+
+            if raw == "APRENDIENDO":
+                return "LEARNING"
+
+            if raw in {
+                "SIN_DATOS",
+                "SIN DATOS",
+                "NO_DATA",
+            }:
+                return "NO_DATA"
+
+            return raw or "UNKNOWN"
+
+        process_warning = (
+            "Uno o m?s procesos de Pasarelas "
+            "reportaron advertencias durante la ejecuci?n."
+        )
+
+        business_alerts = [
+            str(item)
+            for item in self.result.alerts
+            if str(item) != process_warning
+        ]
+
+        technical_warnings = [
+            str(item)
+            for item in self.result.alerts
+            if str(item) == process_warning
+        ]
+
+        groups = []
+
+        grouped = df.groupby(
+            ["codigo", "vertical"],
+            dropna=False,
+            sort=True,
+        )
+
+        for (codigo, vertical), group_df in grouped:
+            codigo = str(clean(codigo) or "")
+            vertical = str(
+                clean(vertical) or codigo
+            )
+
+            services = []
+
+            service_groups = group_df.groupby(
+                ["origen", "tipo_reporte"],
+                dropna=False,
+                sort=True,
+            )
+
+            for (
+                origen,
+                tipo_reporte,
+            ), service_df in service_groups:
+
+                origen = str(
+                    clean(origen) or ""
+                )
+                tipo_reporte = str(
+                    clean(tipo_reporte) or ""
+                )
+
+                metrics = []
+
+                for row_index, row in service_df.iterrows():
+
+                    status = normalize_status(
+                        row.get("estado")
+                    )
+
+                    medio = (
+                        clean(
+                            row.get("medio_salida")
+                        )
+                        or clean(
+                            row.get("medio_pago")
+                        )
+                        or "Resultado"
+                    )
+
+                    metric_id = (
+                        f"{codigo}-"
+                        f"{origen}-"
+                        f"{tipo_reporte}-"
+                        f"{row_index}"
+                    )
+
+                    metric_id = (
+                        metric_id
+                        .lower()
+                        .replace(" ", "-")
+                    )
+
+                    metrics.append({
+                        "id": metric_id,
+                        "metric": str(medio),
+                        "value": integer(
+                            row.get("cantidad_ok")
+                        ),
+                        "status": status,
+                        "severity": None,
+                        "query_ok": True,
+                        "technical_error": None,
+                        "detail": clean(
+                            row.get("observacion")
+                        ),
+                        "raw_status": clean(
+                            row.get("estado")
+                        ),
+                        "cantidad_ok": integer(
+                            row.get("cantidad_ok")
+                        ),
+                        "cantidad_total": integer(
+                            row.get(
+                                "cantidad_total"
+                            )
+                        ),
+                        "cantidad_fallida": integer(
+                            row.get(
+                                "cantidad_fallida"
+                            )
+                        ),
+                        "valor_ok": clean(
+                            row.get("valor_ok")
+                        ),
+                        "ultima_ok": str(
+                            clean(
+                                row.get("ultima_ok")
+                            )
+                            or ""
+                        ),
+                        "medio_pago": clean(
+                            row.get("medio_pago")
+                        ),
+                        "medio_salida": clean(
+                            row.get("medio_salida")
+                        ),
+                    })
+
+                statuses = {
+                    metric["status"]
+                    for metric in metrics
+                }
+
+                if any(
+                    value not in {
+                        "OK",
+                        "LEARNING",
+                        "NO_DATA",
+                    }
+                    for value in statuses
+                ):
+                    service_status = "ALERT"
+
+                elif "LEARNING" in statuses:
+                    service_status = "LEARNING"
+
+                elif statuses == {"NO_DATA"}:
+                    service_status = "NO_DATA"
+
+                else:
+                    service_status = "OK"
+
+                service_name = " / ".join(
+                    value
+                    for value in (
+                        origen,
+                        tipo_reporte,
+                    )
+                    if value
+                )
+
+                services.append({
+                    "id": (
+                        f"{codigo}-"
+                        f"{origen}-"
+                        f"{tipo_reporte}"
+                    )
+                    .lower()
+                    .replace(" ", "-"),
+                    "name": (
+                        service_name
+                        or "Pasarelas"
+                    ),
+                    "status": service_status,
+                    "metrics": metrics,
+                })
+
+            groups.append({
+                "id": codigo,
+                "name": vertical,
+                "code": codigo,
+                "services": services,
+            })
+
+        metadata = self.result.metadata
+
+        return {
+            "summary": {
+                "rows": int(len(df)),
+                "verticals": int(
+                    metadata.get(
+                        "verticales",
+                        0,
+                    )
+                ),
+                "cantidad_total": int(
+                    metadata.get(
+                        "cantidad_total",
+                        0,
+                    )
+                ),
+                "cantidad_ok": int(
+                    metadata.get(
+                        "cantidad_ok_total",
+                        0,
+                    )
+                ),
+                "cantidad_fallida": int(
+                    metadata.get(
+                        "cantidad_fallida",
+                        0,
+                    )
+                ),
+                "business_alerts": len(
+                    business_alerts
+                ),
+                "technical_errors": len(
+                    self.result.errors
+                ),
+                "technical_warnings": len(
+                    technical_warnings
+                ),
+            },
+            "groups": groups,
+            "business_alerts": business_alerts,
+            "technical_errors": [
+                {
+                    "type": "TECHNICAL_ERROR",
+                    "detail": str(error),
+                }
+                for error in self.result.errors
+            ],
+            "technical_warnings": (
+                technical_warnings
+            ),
+            "series": {},
+        }
 
     def _resolve_cut(self) -> str:
         raw = str(
