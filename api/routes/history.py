@@ -2,7 +2,9 @@
 
 from datetime import date, timedelta
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from api.auth_dependencies import require_roles
 from pydantic import BaseModel
 
 from api.storage import (
@@ -72,6 +74,14 @@ def daily_history(
     monitor: str | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+            "OPERADOR",
+            "CONSULTA",
+        )
+    ),
 ):
     normalized_monitor = None
 
@@ -122,6 +132,14 @@ def daily_history_monitor(
     closure_date: str | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+            "OPERADOR",
+            "CONSULTA",
+        )
+    ),
 ):
     normalized_monitor = (
         _validate_monitor(
@@ -186,6 +204,12 @@ def daily_history_monitor(
 @router.post("/history/close")
 def close_history(
     payload: DailyCloseRequest,
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+        )
+    ),
 ):
     target_date = (
         _validate_date(

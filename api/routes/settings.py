@@ -83,7 +83,16 @@ def _settings_payload() -> dict[str, Any]:
 
 
 @router.get("/settings")
-def get_settings():
+def get_settings(
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+            "OPERADOR",
+            "CONSULTA",
+        )
+    ),
+):
     return _settings_payload()
 
 
@@ -145,7 +154,16 @@ def update_settings(
 
 
 @router.get("/secrets/status")
-def secrets_status():
+def secrets_status(
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+            "OPERADOR",
+            "CONSULTA",
+        )
+    ),
+):
     store = get_secret_store()
 
     return {
@@ -165,6 +183,14 @@ def secrets_status():
 )
 def secret_status(
     provider: str,
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+            "OPERADOR",
+            "CONSULTA",
+        )
+    ),
 ):
     provider = _provider(
         provider

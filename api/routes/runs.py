@@ -240,7 +240,16 @@ def run_monitor(
 
 
 @router.get("/runs")
-def runs():
+def runs(
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+            "OPERADOR",
+            "CONSULTA",
+        )
+    ),
+):
     items = list_runs()
 
     return {
@@ -250,7 +259,17 @@ def runs():
 
 
 @router.get("/runs/{run_id}")
-def run_detail(run_id: str):
+def run_detail(
+    run_id: str,
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+            "OPERADOR",
+            "CONSULTA",
+        )
+    ),
+):
     item = get_run(run_id)
 
     if item is None:
@@ -265,6 +284,14 @@ def run_detail(run_id: str):
 def run_output(
     run_id: str,
     output_id: str,
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+            "OPERADOR",
+            "CONSULTA",
+        )
+    ),
 ):
     target = _resolve_safe_output(
         run_id,

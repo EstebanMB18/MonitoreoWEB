@@ -1,4 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from api.auth_dependencies import require_roles
 
 from api.runtime import (
     MONITOR_DEFINITIONS,
@@ -10,7 +12,16 @@ router = APIRouter()
 
 
 @router.get("/dashboard")
-def dashboard():
+def dashboard(
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+            "OPERADOR",
+            "CONSULTA",
+        )
+    ),
+):
 
     monitors = []
     active_alerts = []

@@ -1252,7 +1252,16 @@ def _replicador_operational_status(
 
 
 @router.get("/today")
-def general_today() -> dict[str, Any]:
+def general_today(
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+            "OPERADOR",
+            "CONSULTA",
+        )
+    ),
+) -> dict[str, Any]:
     aws = _latest_completed("AWS")
     pasarelas = _latest_completed(
         "PASARELAS"
@@ -2090,6 +2099,14 @@ def _daily_general_status(
 def general_month(
     year: int,
     month: int,
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+            "OPERADOR",
+            "CONSULTA",
+        )
+    ),
 ) -> dict[str, Any]:
 
     if year < 2000 or year > 2100:
