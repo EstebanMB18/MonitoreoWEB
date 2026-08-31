@@ -275,11 +275,21 @@ def list_runs() -> list[dict[str, Any]]:
     with LOCK:
         ids = list(RUNS.keys())
 
-    return [
-        get_run(run_id)
-        for run_id in reversed(ids)
-        if get_run(run_id) is not None
-    ]
+    items = []
+
+    for run_id in ids:
+        item = get_run(run_id)
+
+        if item is not None:
+            items.append(item)
+
+    items.sort(
+        key=lambda item:
+            item.get("created_at") or "",
+        reverse=True,
+    )
+
+    return items
 
 
 def latest_run_for_monitor(
