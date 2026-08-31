@@ -444,6 +444,68 @@ class PasarelasMonitor(BaseMonitor):
                 "services": services,
             })
 
+        creditos_zoom = []
+
+        creditos_df = df[
+            df["codigo"]
+            .astype(str)
+            .isin({"41607", "41612"})
+        ]
+
+        for _, row in creditos_df.iterrows():
+            codigo = str(
+                clean(row.get("codigo")) or ""
+            )
+
+            medio = (
+                clean(row.get("medio_salida"))
+                or clean(row.get("medio_pago"))
+                or "Resultado"
+            )
+
+            creditos_zoom.append({
+                "codigo": codigo,
+                "vertical": str(
+                    clean(row.get("vertical"))
+                    or codigo
+                ),
+                "medio": str(medio),
+                "ok": integer(
+                    row.get("cantidad_ok")
+                ),
+                "total": integer(
+                    row.get("cantidad_total")
+                ),
+                "expired": integer(
+                    row.get("conteo_expired")
+                ),
+                "rechazadas": integer(
+                    row.get("conteo_rechazada")
+                ),
+                "fallas_tecnicas": integer(
+                    row.get(
+                        "conteo_fallida_tecnica"
+                    )
+                ),
+                "pendientes": integer(
+                    row.get("conteo_pendiente")
+                ),
+                "otras": integer(
+                    row.get("conteo_otra")
+                ),
+                "ultima_ok": str(
+                    clean(row.get("ultima_ok"))
+                    or ""
+                ),
+                "status": normalize_status(
+                    row.get("estado")
+                ),
+                "motivo": str(
+                    clean(row.get("observacion"))
+                    or ""
+                ),
+            })
+
         metadata = self.result.metadata
 
         return {
@@ -495,7 +557,9 @@ class PasarelasMonitor(BaseMonitor):
             "technical_warnings": (
                 technical_warnings
             ),
-            "series": {},
+            "series": {
+                "creditos_zoom": creditos_zoom,
+            },
         }
 
     def _resolve_cut(self) -> str:
