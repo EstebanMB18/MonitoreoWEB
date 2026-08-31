@@ -1,7 +1,9 @@
 ﻿from __future__ import annotations
 
 import os
+import json
 import subprocess
+import shutil
 import sys
 from pathlib import Path
 
@@ -10,6 +12,7 @@ import pandas as pd
 from core.events import EventBus
 from core.monitor_base import BaseMonitor
 from core.models import MonitorOutput, RunContext, RunStatus
+from core.platform import get_secret_store
 
 
 BASE = Path(__file__).resolve().parent
@@ -105,6 +108,47 @@ print("HERCULES_RESULT_PATH=" + str(resultado))
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
 
+        # Credenciales locales de Nexus.
+        try:
+            store = get_secret_store()
+            raw = store.get("HERCULES")
+
+            if raw:
+                values = json.loads(raw)
+
+                if isinstance(values, dict):
+                    username = (
+                        values.get(
+                            "HERCULES_USERNAME"
+                        )
+                        or values.get("username")
+                        or values.get("user")
+                    )
+
+                    password = (
+                        values.get(
+                            "HERCULES_PASSWORD"
+                        )
+                        or values.get("password")
+                    )
+
+                    if username:
+                        env[
+                            "HERCULES_USERNAME"
+                        ] = str(username)
+
+                    if password:
+                        env[
+                            "HERCULES_PASSWORD"
+                        ] = str(password)
+
+        except Exception as exc:
+            self.logger.warning(
+                "No fue posible cargar credencial "
+                "local de H?rcules: "
+                f"{type(exc).__name__}"
+            )
+
         process = subprocess.run(
             [
                 sys.executable,
@@ -187,9 +231,35 @@ print("HERCULES_RESULT_PATH=" + str(resultado))
             }
         )
 
+        final_summary = self.summary_path
+        final_folder = REPORTS_DIR.resolve()
+
+        if self.context.output_root:
+            final_folder = (
+                self.context.output_root
+                / "hercules"
+            ).resolve()
+
+            final_folder.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+
+            target = (
+                final_folder
+                / self.summary_path.name
+            )
+
+            shutil.copy2(
+                self.summary_path,
+                target,
+            )
+
+            final_summary = target
+
         self.result.outputs = MonitorOutput(
-            excel=str(self.summary_path),
-            folder=str(REPORTS_DIR.resolve()),
+            excel=str(final_summary),
+            folder=str(final_folder),
         )
 
         self.logger.info(
@@ -772,15 +842,36 @@ print("HERCULES_RESULT_PATH=" + str(resultado))
             return {}
 
     def _resolve_days_back(self) -> int:
-        execution_date = (
-            self.context.execution_date or ""
+        window_mode = str(
+            self.context.window_mode
+            or ""
+        ).upper()
+
+        if window_mode in {
+            "CUSTOM",
+            "LAST_HOUR",
+            "LAST_N_HOURS",
+        }:
+            raise ValueError(
+                "H?rcules trabaja por fecha "
+                "y resuelve internamente el "
+                "rango hasta el momento de "
+                "la consulta. Use CUT, "
+                "TODAY_TO_NOW, YESTERDAY "
+                "o DATE."
+            )
+
+        target_date = (
+            self.context.data_date
+            or self.context.execution_date
+            or ""
         ).strip()
 
-        if execution_date:
+        if target_date:
             from datetime import date
 
             target = date.fromisoformat(
-                execution_date
+                target_date
             )
 
             today = date.today()
@@ -791,7 +882,7 @@ print("HERCULES_RESULT_PATH=" + str(resultado))
 
             if delta < 0:
                 raise ValueError(
-                    "Hércules no puede consultar "
+                    "H?rcules no puede consultar "
                     "una fecha futura."
                 )
 

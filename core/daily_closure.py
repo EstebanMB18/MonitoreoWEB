@@ -31,6 +31,15 @@ SUCCESS_STATUSES = {
 def _run_date(
     run: dict[str, Any],
 ) -> str | None:
+    # El hist?rico debe pertenecer al d?a de los
+    # datos monitoreados, no necesariamente al d?a
+    # en que termin? f?sicamente la ejecuci?n.
+    data_date = run.get("data_date")
+
+    if data_date:
+        return str(data_date)[:10]
+
+    # Compatibilidad con ejecuciones antiguas.
     for field in (
         "finished_at",
         "started_at",
@@ -64,6 +73,434 @@ def _compact_run(
             "duration_seconds"
         ),
     }
+
+
+def _integer(value: Any) -> int:
+    try:
+        return int(float(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _details(
+    run: dict[str, Any],
+) -> dict[str, Any]:
+    value = run.get("details") or {}
+    return value if isinstance(value, dict) else {}
+
+
+def _summary(
+    run: dict[str, Any],
+) -> dict[str, Any]:
+    value = _details(run).get("summary") or {}
+    return value if isinstance(value, dict) else {}
+
+
+def _series(
+    run: dict[str, Any],
+) -> dict[str, Any]:
+    value = _details(run).get("series") or {}
+    return value if isinstance(value, dict) else {}
+
+
+def _count_safe_rows(value: Any) -> int:
+    if not isinstance(value, list):
+        return 0
+
+    total = 0
+
+    for row in value:
+        if not isinstance(row, dict):
+            continue
+
+        count = (
+            row.get("count")
+            or row.get("cantidad")
+            or row.get("total")
+            or 1
+        )
+
+        total += _integer(count)
+
+    return total
+
+
+def _aws_daily_kpis(
+    run: dict[str, Any],
+) -> dict[str, Any]:
+    series = _series(run)
+
+    tup = series.get("tup_resumen") or {}
+
+    if isinstance(tup, list):
+        tup = (
+            tup[0]
+            if tup
+            and isinstance(tup[0], dict)
+            else {}
+        )
+
+    if not isinstance(tup, dict):
+        tup = {}
+
+    servicios = (
+        series.get("serviciosred_resumen")
+        or {}
+    )
+
+    if isinstance(servicios, list):
+        servicios = (
+            servicios[0]
+            if servicios
+            and isinstance(
+                servicios[0],
+                dict,
+            )
+            else {}
+        )
+
+    if not isinstance(servicios, dict):
+        servicios = {}
+
+    servicios_total = 0
+
+    for key in (
+        "total",
+        "notificaciones",
+        "cantidad",
+        "count",
+    ):
+        if servicios.get(key) is not None:
+            servicios_total = _integer(
+                servicios[key]
+            )
+            break
+
+    ultima_notificacion = None
+
+    for key in (
+        "ultima_notificacion",
+        "ultima_transaccion",
+        "ultima_actividad",
+        "ultima",
+    ):
+        if servicios.get(key):
+            ultima_notificacion = str(
+                servicios[key]
+            )
+            break
+
+    otp_exitos = 0
+    otp_errores = 0
+    otp_available = False
+
+    for key, target in (
+        ("mensajeria_exitos", "ok"),
+        ("mensajeria_errores", "error"),
+    ):
+        rows = series.get(key) or []
+
+        if not isinstance(rows, list):
+            continue
+
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+
+            searchable = " ".join(
+                str(value)
+                for value in row.values()
+                if value is not None
+            ).casefold()
+
+            if "otp" not in searchable:
+                continue
+
+            otp_available = True
+
+            count = _integer(
+                row.get("count")
+                or row.get("cantidad")
+                or row.get("total")
+                or 1
+            )
+
+            if target == "ok":
+                otp_exitos += count
+            else:
+                otp_errores += count
+
+    return {
+        "tup": {
+            "aprobadas": _integer(
+                tup.get("aprobadas")
+            ),
+            "errores": _integer(
+                tup.get("errores")
+            ),
+            "total": _integer(
+                tup.get("total")
+            ),
+        },
+        "servicios_red": {
+            "total": servicios_total,
+            "ultima_notificacion":
+                ultima_notificacion,
+        },
+        "mensajeria": {
+            "exitos": _count_safe_rows(
+                series.get(
+                    "mensajeria_exitos"
+                )
+            ),
+            "errores": _count_safe_rows(
+                series.get(
+                    "mensajeria_errores"
+                )
+            ),
+        },
+        "otp": {
+            "available": otp_available,
+            "exitos": otp_exitos,
+            "errores": otp_errores,
+            "total":
+                otp_exitos + otp_errores,
+        },
+    }
+
+
+def _pasarelas_41610(
+    run: dict[str, Any],
+) -> dict[str, Any]:
+    result = {
+        "aprobadas": 0,
+        "fallidas": 0,
+        "total": 0,
+        "status": "NO_DATA",
+    }
+
+    groups = (
+        _details(run).get("groups")
+        or []
+    )
+
+    statuses: list[str] = []
+
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+
+        code = str(
+            group.get("code")
+            or group.get("id")
+            or ""
+        )
+
+        if code != "41610":
+            continue
+
+        for service in (
+            group.get("services")
+            or []
+        ):
+            if not isinstance(
+                service,
+                dict,
+            ):
+                continue
+
+            for metric in (
+                service.get("metrics")
+                or []
+            ):
+                if not isinstance(
+                    metric,
+                    dict,
+                ):
+                    continue
+
+                result["aprobadas"] += (
+                    _integer(
+                        metric.get(
+                            "cantidad_ok"
+                        )
+                    )
+                )
+
+                result["fallidas"] += (
+                    _integer(
+                        metric.get(
+                            "cantidad_fallida"
+                        )
+                    )
+                )
+
+                result["total"] += (
+                    _integer(
+                        metric.get(
+                            "cantidad_total"
+                        )
+                    )
+                )
+
+                status = str(
+                    metric.get("status")
+                    or ""
+                ).upper()
+
+                if status:
+                    statuses.append(status)
+
+    if statuses:
+        if any(
+            value
+            not in {
+                "OK",
+                "LEARNING",
+                "NO_DATA",
+            }
+            for value in statuses
+        ):
+            result["status"] = "WARNING"
+        elif "LEARNING" in statuses:
+            result["status"] = "LEARNING"
+        elif set(statuses) == {"NO_DATA"}:
+            result["status"] = "NO_DATA"
+        else:
+            result["status"] = "OK"
+
+    return result
+
+
+def _pasarelas_daily_kpis(
+    run: dict[str, Any],
+) -> dict[str, Any]:
+    summary = _summary(run)
+
+    return {
+        "aprobadas": _integer(
+            summary.get("cantidad_ok")
+        ),
+        "fallidas": _integer(
+            summary.get(
+                "cantidad_fallida"
+            )
+        ),
+        "tup_610":
+            _pasarelas_41610(run),
+    }
+
+
+def _hercules_daily_kpis(
+    run: dict[str, Any],
+) -> dict[str, Any]:
+    summary = _summary(run)
+    series = _series(run)
+
+    tarjeta = {
+        "pago_realizado": 0,
+        "checkout": 0,
+        "pendiente_recaudo": 0,
+        "pago_pendiente": 0,
+        "status": "NO_DATA",
+    }
+
+    for item in (
+        series.get("alertas_web")
+        or []
+    ):
+        if not isinstance(item, dict):
+            continue
+
+        forma = str(
+            item.get("forma_pago")
+            or ""
+        ).strip().casefold()
+
+        if forma not in {
+            "t. compensar",
+            "tarjeta compensar",
+            "tup",
+        }:
+            continue
+
+        tarjeta = {
+            "pago_realizado":
+                _integer(
+                    item.get(
+                        "pago_realizado"
+                    )
+                ),
+            "checkout":
+                _integer(
+                    item.get("checkout")
+                ),
+            "pendiente_recaudo":
+                _integer(
+                    item.get(
+                        "pendiente_recaudo"
+                    )
+                ),
+            "pago_pendiente":
+                _integer(
+                    item.get(
+                        "pago_pendiente"
+                    )
+                ),
+            "status": str(
+                item.get("status")
+                or "NO_DATA"
+            ),
+        }
+
+        break
+
+    return {
+        "pago_realizado": _integer(
+            summary.get(
+                "pago_realizado"
+            )
+        ),
+        "checkout": _integer(
+            summary.get("checkout")
+        ),
+        "pendiente_recaudo": _integer(
+            summary.get(
+                "pendiente_recaudo"
+            )
+        ),
+        "web_tcompensar": tarjeta,
+    }
+
+
+def _daily_kpis(
+    monitor: str,
+    runs: list[dict[str, Any]],
+) -> dict[str, Any]:
+    if not runs:
+        return {}
+
+    # Los monitores manejan cifras acumuladas
+    # durante el d?a. Para evitar duplicar
+    # transacciones entre cortes, el hist?rico
+    # conserva el ?ltimo snapshot oficial.
+    run = runs[-1]
+
+    if monitor == "AWS":
+        return _aws_daily_kpis(run)
+
+    if monitor == "PASARELAS":
+        return _pasarelas_daily_kpis(
+            run
+        )
+
+    if monitor == "HERCULES":
+        return _hercules_daily_kpis(
+            run
+        )
+
+    return {}
+
 
 
 def _overall_status(
@@ -158,7 +595,7 @@ def build_daily_closure(
     now = datetime.now().isoformat()
 
     snapshot = {
-        "schema_version": 1,
+        "schema_version": 2,
         "monitor": monitor,
         "date": closure_date,
         "coverage": coverage_status,
@@ -170,6 +607,10 @@ def build_daily_closure(
         "records": total_records,
         "alerts": alerts_count,
         "errors": errors_count,
+        "kpis": _daily_kpis(
+            monitor,
+            runs,
+        ),
         "runs": [
             _compact_run(run)
             for run in runs

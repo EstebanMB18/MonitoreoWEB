@@ -74,6 +74,13 @@ def init_db() -> None:
                 run_type TEXT NOT NULL,
                 cut TEXT,
                 reason TEXT,
+
+                window_mode TEXT,
+                execution_date TEXT,
+                data_date TEXT,
+                window_start TEXT,
+                window_end TEXT,
+
                 status TEXT NOT NULL,
                 progress INTEGER NOT NULL DEFAULT 0,
 
@@ -108,6 +115,24 @@ def init_db() -> None:
                 "ALTER TABLE runs "
                 "ADD COLUMN details_json TEXT"
             )
+
+        window_columns = {
+            "window_mode": "TEXT",
+            "execution_date": "TEXT",
+            "data_date": "TEXT",
+            "window_start": "TEXT",
+            "window_end": "TEXT",
+        }
+
+        for column, sql_type in (
+            window_columns.items()
+        ):
+            if column not in columns:
+                conn.execute(
+                    f"ALTER TABLE runs "
+                    f"ADD COLUMN {column} "
+                    f"{sql_type}"
+                )
 
         conn.execute(
             """
@@ -213,6 +238,11 @@ def save_run(run: dict[str, Any]) -> None:
                 run_type,
                 cut,
                 reason,
+                window_mode,
+                execution_date,
+                data_date,
+                window_start,
+                window_end,
                 status,
                 progress,
                 official,
@@ -231,10 +261,21 @@ def save_run(run: dict[str, Any]) -> None:
             )
             VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?
             )
             ON CONFLICT(run_id)
             DO UPDATE SET
+                window_mode=
+                    excluded.window_mode,
+                execution_date=
+                    excluded.execution_date,
+                data_date=
+                    excluded.data_date,
+                window_start=
+                    excluded.window_start,
+                window_end=
+                    excluded.window_end,
                 status=excluded.status,
                 progress=excluded.progress,
                 started_at=excluded.started_at,
@@ -253,6 +294,11 @@ def save_run(run: dict[str, Any]) -> None:
                 run.get("run_type"),
                 run.get("cut"),
                 run.get("reason"),
+                run.get("window_mode"),
+                run.get("execution_date"),
+                run.get("data_date"),
+                run.get("window_start"),
+                run.get("window_end"),
                 run.get("status"),
                 run.get("progress", 0),
                 int(bool(run.get("official"))),

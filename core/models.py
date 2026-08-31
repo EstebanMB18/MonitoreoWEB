@@ -79,8 +79,15 @@ class MonitorResult:
 @dataclass
 class RunContext:
     run_id: str
+
     cut: str | None = None
+    window_mode: str | None = None
+
     execution_date: str | None = None
+    data_date: str | None = None
+
+    window_start: str | None = None
+    window_end: str | None = None
 
     user: str | None = None
     computer: str | None = None

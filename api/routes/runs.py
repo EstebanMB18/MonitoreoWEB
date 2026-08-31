@@ -14,12 +14,18 @@ from api.runtime import (
     list_runs,
 )
 
+from core.execution_window import (
+    resolve_monitor_execution_window,
+)
+
+from core.platform import config_manager
+
 
 router = APIRouter()
 
 ROOT = Path(__file__).resolve().parents[2]
 
-ALLOWED_OUTPUT_ROOTS = [
+STATIC_OUTPUT_ROOTS = [
     (ROOT / "runtime" / "output").resolve(),
     (
         ROOT
@@ -35,6 +41,35 @@ ALLOWED_OUTPUT_ROOTS = [
         / "reports"
     ).resolve(),
 ]
+
+
+def _allowed_output_roots() -> list[Path]:
+    roots = list(STATIC_OUTPUT_ROOTS)
+
+    try:
+        config = config_manager.load()
+
+        configured = str(
+            config.get("output_directory")
+            or ""
+        ).strip()
+
+        if configured:
+            root = (
+                Path(configured)
+                .expanduser()
+                .resolve()
+            )
+
+            if root not in roots:
+                roots.append(root)
+
+    except Exception:
+        # Si settings no puede cargarse, se conservan
+        # ?nicamente las rutas internas conocidas.
+        pass
+
+    return roots
 
 
 def _resolve_safe_output(
@@ -75,7 +110,7 @@ def _resolve_safe_output(
     allowed = any(
         target == root
         or root in target.parents
-        for root in ALLOWED_OUTPUT_ROOTS
+        for root in _allowed_output_roots()
     )
 
     if not allowed:
@@ -102,7 +137,17 @@ class RunType(str, Enum):
 
 class RunRequest(BaseModel):
     run_type: RunType = RunType.MANUAL
+
+    window_mode: str = "TODAY_TO_NOW"
+
+    data_date: str | None = None
     cut: str | None = None
+
+    window_start: str | None = None
+    window_end: str | None = None
+
+    last_n_hours: int | None = None
+
     reason: str | None = None
 
 
@@ -120,17 +165,77 @@ def run_monitor(
 ):
     key = monitor_id.lower()
 
+    run_type = payload.run_type.value
+
+    role = str(
+        user.get("role")
+        or ""
+    ).upper()
+
+    if (
+        run_type == "OFFICIAL"
+        and role not in {
+            "ADMIN",
+            "MONITOR_OFICIAL",
+        }
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Solo ADMIN o MONITOR_OFICIAL "
+                "pueden ejecutar cortes OFFICIAL."
+            ),
+        )
+
+    if (
+        run_type == "OFFICIAL"
+        and str(
+            payload.window_mode
+            or ""
+        ).upper() != "CUT"
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Una ejecucion OFFICIAL "
+                "debe usar window_mode=CUT."
+            ),
+        )
+
     if key not in MONITOR_REGISTRY:
         raise HTTPException(
             status_code=404,
             detail="Monitor no encontrado.",
         )
 
+    try:
+        resolved = (
+            resolve_monitor_execution_window(
+                monitor=key,
+                mode=payload.window_mode,
+                data_date=payload.data_date,
+                cut=payload.cut,
+                window_start=
+                    payload.window_start,
+                window_end=
+                    payload.window_end,
+                last_n_hours=
+                    payload.last_n_hours,
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
     return create_run(
         monitor_id=key,
-        run_type=payload.run_type.value,
-        cut=payload.cut,
+        run_type=run_type,
+        cut=resolved.cut,
         reason=payload.reason,
+        execution_window=
+            resolved.to_dict(),
     )
 
 

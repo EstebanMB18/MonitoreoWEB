@@ -21,7 +21,7 @@ if str(SRC) not in sys.path:
 
 from monitoreo_aws.core.alerts import evaluar
 from monitoreo_aws.core.aws import asegurar_sso_profiles
-from monitoreo_aws.core.windows import obtener_ventana
+from monitoreo_aws.core.windows import Ventana, obtener_ventana
 from monitoreo_aws.reports.excel import generar_excel
 from monitoreo_aws.reports.html import generar_html
 from monitoreo_aws.services.collector import recolectar
@@ -97,13 +97,52 @@ class AWSMonitor(BaseMonitor):
             f"Resolviendo ventana AWS para corte {corte}",
         )
 
-        self.ventana = obtener_ventana(
-            corte,
-            self.context.execution_date,
-            cfg["app"]["timezone"],
-            "00:00",
-            "23:59",
-        )
+        if (
+            self.context.window_start
+            and self.context.window_end
+        ):
+            from datetime import datetime
+
+            inicio = datetime.fromisoformat(
+                self.context.window_start
+            )
+
+            fin = datetime.fromisoformat(
+                self.context.window_end
+            )
+
+            self.ventana = Ventana(
+                corte=(
+                    self.context.cut
+                    or corte
+                ),
+                nombre=(
+                    "Ventana Nexus "
+                    f"{inicio:%Y-%m-%d %H:%M} "
+                    "a "
+                    f"{fin:%Y-%m-%d %H:%M}"
+                ),
+                inicio=inicio,
+                fin=fin,
+            )
+
+            self.logger.info(
+                "AWS usando ventana "
+                "resuelta por Nexus."
+            )
+
+        else:
+            self.ventana = obtener_ventana(
+                corte,
+                self.context.execution_date,
+                cfg["app"]["timezone"],
+                "00:00",
+                "23:59",
+            )
+
+            self.logger.info(
+                "AWS usando ventana legacy."
+            )
 
         self.logger.info(
             f"Ventana AWS: {self.ventana.texto}"

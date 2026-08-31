@@ -1,7 +1,9 @@
 ﻿from __future__ import annotations
 
 import os
+import json
 import subprocess
+import shutil
 import time
 import threading
 import queue
@@ -13,6 +15,7 @@ import pandas as pd
 from core.events import EventBus
 from core.monitor_base import BaseMonitor
 from core.models import MonitorOutput, RunContext, RunStatus
+from core.platform import get_secret_store
 
 
 BASE = Path(__file__).resolve().parent
@@ -78,15 +81,61 @@ class PasarelasMonitor(BaseMonitor):
             f"Preparando Pasarelas para corte {corte}",
         )
 
+        modo = "actual"
+
+        window_mode = str(
+            self.context.window_mode
+            or ""
+        ).upper()
+
+        if window_mode == "TODAY_TO_NOW":
+            modo = "acumulado-hoy"
+
+        elif window_mode == "YESTERDAY":
+            modo = "dia-anterior"
+
+        elif window_mode == "DATE":
+            modo = "fecha"
+
+        elif window_mode == "CUT":
+            modo = "actual"
+
+        elif window_mode in {
+            "CUSTOM",
+            "LAST_HOUR",
+            "LAST_N_HOURS",
+        }:
+            raise ValueError(
+                "Pasarelas no usa rangos horarios "
+                "impuestos por Nexus. "
+                "Use CUT, TODAY_TO_NOW, "
+                "YESTERDAY o DATE."
+            )
+
         cmd = [
             sys.executable,
             str(SRC / "ejecutar_paralelo.py"),
             "--modo",
-            "actual",
+            modo,
             "--corte",
             corte,
-            "--no-publicar",
         ]
+
+        if modo == "fecha":
+            if not self.context.data_date:
+                raise ValueError(
+                    "Pasarelas requiere data_date "
+                    "para modo DATE."
+                )
+
+            cmd.extend([
+                "--fecha",
+                self.context.data_date,
+            ])
+
+        cmd.append(
+            "--no-publicar"
+        )
 
         self.logger.info(
             "Modo operator: publicación oficial deshabilitada."
@@ -100,6 +149,72 @@ class PasarelasMonitor(BaseMonitor):
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
         env["PYTHONUNBUFFERED"] = "1"
+
+        # Credenciales locales cifradas por Nexus.
+        # Nunca se persisten en outputs ni se exponen
+        # al Front.
+        try:
+            store = get_secret_store()
+
+            secret_map = {
+                "ECOLLECT": (
+                    "ECOLLECT_USER",
+                    "ECOLLECT_PASSWORD",
+                ),
+                "PAYU": (
+                    "PAYU_USER",
+                    "PAYU_PASSWORD",
+                ),
+            }
+
+            for provider, expected in secret_map.items():
+                raw = store.get(provider)
+
+                if not raw:
+                    continue
+
+                values = json.loads(raw)
+
+                if not isinstance(values, dict):
+                    continue
+
+                # Permitimos nombres del contrato Nexus
+                # y nombres nativos del bot.
+                aliases = {
+                    "ECOLLECT_USER": (
+                        "ECOLLECT_USER",
+                        "username",
+                        "user",
+                    ),
+                    "ECOLLECT_PASSWORD": (
+                        "ECOLLECT_PASSWORD",
+                        "password",
+                    ),
+                    "PAYU_USER": (
+                        "PAYU_USER",
+                        "username",
+                        "user",
+                    ),
+                    "PAYU_PASSWORD": (
+                        "PAYU_PASSWORD",
+                        "password",
+                    ),
+                }
+
+                for target in expected:
+                    for alias in aliases[target]:
+                        value = values.get(alias)
+
+                        if value:
+                            env[target] = str(value)
+                            break
+
+        except Exception as exc:
+            self.logger.warning(
+                "No fue posible cargar credenciales "
+                "locales de Pasarelas: "
+                f"{type(exc).__name__}"
+            )
 
         process = self._run_streaming_process(
             cmd,
@@ -140,14 +255,62 @@ class PasarelasMonitor(BaseMonitor):
 
         self._build_metadata(corte)
 
+        final_excel = self.excel_path
+        final_dashboard = self.dashboard_path
+        final_folder = SALIDA.resolve()
+
+        # Los archivos temporales contin?an en el
+        # ?rea privada del monitor. Solo copiamos
+        # resultados finales a la carpeta escogida.
+        if self.context.output_root:
+            final_folder = (
+                self.context.output_root
+                / "pasarelas"
+            ).resolve()
+
+            final_folder.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+
+            target_excel = (
+                final_folder
+                / self.excel_path.name
+            )
+
+            shutil.copy2(
+                self.excel_path,
+                target_excel,
+            )
+
+            final_excel = target_excel
+
+            if (
+                self.dashboard_path
+                and self.dashboard_path.exists()
+            ):
+                target_dashboard = (
+                    final_folder
+                    / self.dashboard_path.name
+                )
+
+                shutil.copy2(
+                    self.dashboard_path,
+                    target_dashboard,
+                )
+
+                final_dashboard = (
+                    target_dashboard
+                )
+
         self.result.outputs = MonitorOutput(
             dashboard=(
-                str(self.dashboard_path)
-                if self.dashboard_path
+                str(final_dashboard)
+                if final_dashboard
                 else None
             ),
-            excel=str(self.excel_path),
-            folder=str(SALIDA.resolve()),
+            excel=str(final_excel),
+            folder=str(final_folder),
         )
 
         self.logger.info(
