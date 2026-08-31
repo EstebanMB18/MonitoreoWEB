@@ -464,6 +464,26 @@ print("HERCULES_RESULT_PATH=" + str(resultado))
                 in option_rows.iterrows()
             )
 
+        aggregate_series = self._build_hercules_aggregates(
+            path,
+            normalize_name,
+        )
+
+        state_totals = {}
+
+        for item in aggregate_series.get(
+            "estados_por_canal",
+            [],
+        ):
+            state = normalize_name(
+                item.get("estado", "")
+            )
+
+            state_totals[state] = (
+                state_totals.get(state, 0)
+                + number(item.get("count"))
+            )
+
         return {
             "summary": {
                 "total_records": total_value(
@@ -475,8 +495,25 @@ print("HERCULES_RESULT_PATH=" + str(resultado))
                 "checkout": total_value(
                     normalized_columns.get("checkout", "Checkout")
                 ),
-                "pendiente_recaudo": total_value(
-                    normalized_columns.get("pendiente recaudo", "Pendiente Recaudo")
+                "pendiente_recaudo": state_totals.get(
+                    "pendiente recaudo",
+                    0,
+                ),
+                "pago_pendiente": state_totals.get(
+                    "pago pendiente",
+                    0,
+                ),
+                "pendiente_facturacion": state_totals.get(
+                    "pendiente facturacion",
+                    0,
+                ),
+                "recaudado": state_totals.get(
+                    "recaudado",
+                    0,
+                ),
+                "inconsistentes": state_totals.get(
+                    "inconsistente",
+                    0,
                 ),
                 "options": int(
                     len(option_rows)
@@ -500,8 +537,239 @@ print("HERCULES_RESULT_PATH=" + str(resultado))
                 for item in self.result.alerts
             ],
             "technical_errors": technical_errors,
-            "series": {},
+            "series": aggregate_series,
         }
+
+
+    def _build_hercules_aggregates(
+        self,
+        path: Path,
+        normalize_name,
+    ) -> dict:
+        try:
+            header = pd.read_excel(
+                path,
+                sheet_name="Base_Consolidada",
+                nrows=0,
+            )
+
+            normalized = {
+                normalize_name(column): column
+                for column in header.columns
+            }
+
+            required = {
+                "estado cotizacion",
+                "canal de pago",
+                "forma de pago",
+            }
+
+            missing = [
+                name
+                for name in required
+                if name not in normalized
+            ]
+
+            if missing:
+                return {}
+
+            usecols = [
+                normalized["estado cotizacion"],
+                normalized["canal de pago"],
+                normalized["forma de pago"],
+            ]
+
+            base = pd.read_excel(
+                path,
+                sheet_name="Base_Consolidada",
+                usecols=usecols,
+            )
+
+            estado_col = normalized["estado cotizacion"]
+            canal_col = normalized["canal de pago"]
+            forma_col = normalized["forma de pago"]
+
+            def clean_series(column):
+                return (
+                    base[column]
+                    .fillna("")
+                    .astype(str)
+                    .str.strip()
+                )
+
+            estados = clean_series(estado_col)
+            canales = clean_series(canal_col)
+            formas = clean_series(forma_col)
+
+            safe = pd.DataFrame(
+                {
+                    "estado": estados,
+                    "canal": canales,
+                    "forma": formas,
+                }
+            )
+
+            safe["canal"] = safe["canal"].replace(
+                "",
+                "Otros",
+            )
+
+            def records(frame, keys):
+                if frame.empty:
+                    return []
+
+                grouped = (
+                    frame
+                    .groupby(keys, dropna=False)
+                    .size()
+                    .reset_index(name="count")
+                )
+
+                result = []
+
+                for _, row in grouped.iterrows():
+                    item = {
+                        key: str(row[key])
+                        for key in keys
+                    }
+                    item["count"] = int(row["count"])
+                    result.append(item)
+
+                return result
+
+            estados_por_canal = records(
+                safe,
+                ["canal", "estado"],
+            )
+
+            totales_por_canal = records(
+                safe,
+                ["canal"],
+            )
+
+            pago_realizado = safe[
+                safe["estado"].str.casefold()
+                == "pago realizado".casefold()
+            ]
+
+            checkout = safe[
+                safe["estado"].str.casefold()
+                == "checkout".casefold()
+            ]
+
+            pendiente_recaudo = safe[
+                safe["estado"].str.casefold()
+                == "pendiente recaudo".casefold()
+            ]
+
+            alertas_web = []
+
+            web = safe[
+                safe["canal"].str.casefold()
+                == "web"
+            ]
+
+            for forma_objetivo in (
+                "TC",
+                "TD",
+                "T. Compensar",
+            ):
+                subset = web[
+                    web["forma"]
+                    == forma_objetivo
+                ]
+
+                def count_state(name):
+                    return int(
+                        (
+                            subset["estado"]
+                            .str.casefold()
+                            == name.casefold()
+                        ).sum()
+                    )
+
+                pago_realizado_count = count_state(
+                    "Pago Realizado"
+                )
+                checkout_count = count_state(
+                    "Checkout"
+                )
+                pendiente_recaudo_count = count_state(
+                    "Pendiente Recaudo"
+                )
+                pago_pendiente_count = count_state(
+                    "Pago Pendiente"
+                )
+
+                status = "OK"
+
+                if (
+                    checkout_count > pago_realizado_count
+                    or pendiente_recaudo_count > pago_realizado_count
+                    or pago_pendiente_count > pago_realizado_count
+                ):
+                    status = "ERROR"
+
+                elif (
+                    forma_objetivo == "T. Compensar"
+                    and pago_realizado_count == 0
+                ):
+                    status = "ERROR"
+
+                elif checkout_count > 150:
+                    status = "WARNING"
+
+                alertas_web.append(
+                    {
+                        "forma_pago": forma_objetivo,
+                        "pago_realizado":
+                            pago_realizado_count,
+                        "checkout":
+                            checkout_count,
+                        "pendiente_recaudo":
+                            pendiente_recaudo_count,
+                        "pago_pendiente":
+                            pago_pendiente_count,
+                        "status": status,
+                    }
+                )
+
+            return {
+                "estados_por_canal":
+                    estados_por_canal,
+                "totales_por_canal":
+                    totales_por_canal,
+                "pago_realizado_por_forma_pago":
+                    records(
+                        pago_realizado,
+                        ["forma"],
+                    ),
+                "checkout_por_forma_pago":
+                    records(
+                        checkout,
+                        ["forma"],
+                    ),
+                "pago_realizado_canal_forma_pago":
+                    records(
+                        pago_realizado,
+                        ["canal", "forma"],
+                    ),
+                "checkout_canal_forma_pago":
+                    records(
+                        checkout,
+                        ["canal", "forma"],
+                    ),
+                "pendiente_recaudo_canal_forma_pago":
+                    records(
+                        pendiente_recaudo,
+                        ["canal", "forma"],
+                    ),
+                "alertas_web":
+                    alertas_web,
+            }
+
+        except Exception:
+            return {}
 
     def _resolve_days_back(self) -> int:
         execution_date = (
