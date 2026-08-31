@@ -4,6 +4,7 @@ useEffect,
 } from 'react'
 
 import { AwsDetailV2 } from '../components/AwsDetailV2'
+import { HerculesDetail } from '../components/HerculesDetail'
 
 import { StatusBadge } from '../components/StatusBadge'
 import { api } from '../services/api'
@@ -1040,6 +1041,16 @@ export function MonitorDetailPage({
         structuredDetails &&
         monitor.id === 'aws' && (
           <AwsDetailV2
+            details={structuredDetails}
+          />
+        )}
+
+      {!loading &&
+        !error &&
+        run &&
+        structuredDetails &&
+        monitor.id === 'hercules' && (
+          <HerculesDetail
             details={structuredDetails}
           />
         )}

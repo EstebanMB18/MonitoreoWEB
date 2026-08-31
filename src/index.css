@@ -5918,3 +5918,713 @@ html[data-theme='night']
   }
 }
 
+
+
+/* NEXUS HERCULES DETAIL */
+
+.hercules-v2 {
+  display: grid;
+  gap: 18px;
+}
+
+.hercules-kpis {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.hercules-kpis article,
+.hercules-section,
+.hercules-alert-card,
+.hercules-state-card,
+.hercules-chart-card,
+.hercules-detail-card {
+  border: 1px solid var(--nexus-border);
+  background: var(--nexus-surface);
+  border-radius: 16px;
+}
+
+.hercules-kpis article {
+  padding: 18px;
+  border-top: 4px solid
+    var(--nexus-accent);
+}
+
+.hercules-kpis span,
+.hercules-alert-top span,
+.hercules-state-card header span {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--nexus-muted);
+}
+
+.hercules-kpis strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.hercules-kpis small {
+  display: block;
+  margin-top: 8px;
+  color: var(--nexus-muted);
+}
+
+.hercules-section {
+  padding: 18px;
+}
+
+.hercules-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.hercules-heading h2 {
+  margin: 4px 0 0;
+  font-size: 20px;
+}
+
+.hercules-alert-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.hercules-alert-card {
+  padding: 16px;
+  border-left: 5px solid
+    var(--nexus-border);
+}
+
+.hercules-alert-card.is-ok {
+  border-left-color: #10b981;
+}
+
+.hercules-alert-card.is-warning {
+  border-left-color: #f59e0b;
+}
+
+.hercules-alert-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hercules-alert-top h3 {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+
+.hercules-alert-top > strong {
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 11px;
+  background: var(--nexus-soft);
+}
+
+.hercules-alert-metrics {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.hercules-alert-metrics div {
+  padding: 10px;
+  border: 1px solid
+    var(--nexus-border);
+  border-radius: 10px;
+  background: var(--nexus-soft);
+}
+
+.hercules-alert-metrics span {
+  display: block;
+  color: var(--nexus-muted);
+  font-size: 11px;
+}
+
+.hercules-alert-metrics strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 18px;
+}
+
+.hercules-state-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.hercules-state-card {
+  overflow: hidden;
+}
+
+.hercules-state-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px;
+  border-bottom: 1px solid
+    var(--nexus-border);
+  background: var(--nexus-soft);
+}
+
+.hercules-state-card h3 {
+  margin: 4px 0 0;
+  font-size: 17px;
+}
+
+.hercules-state-card header > strong {
+  font-size: 24px;
+}
+
+.hercules-state-body {
+  padding: 8px 14px 12px;
+}
+
+.hercules-state-body > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dashed
+    var(--nexus-border);
+}
+
+.hercules-state-body > div:last-child {
+  border-bottom: 0;
+}
+
+.hercules-chart-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.hercules-chart-card {
+  padding: 16px;
+}
+
+.hercules-chart-card h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.hercules-chart-card p {
+  margin: 5px 0 14px;
+  color: var(--nexus-muted);
+  font-size: 12px;
+}
+
+.hercules-bars {
+  display: grid;
+  gap: 10px;
+}
+
+.hercules-bar-row {
+  display: grid;
+  grid-template-columns:
+    minmax(110px, 190px)
+    1fr
+    70px;
+  align-items: center;
+  gap: 10px;
+}
+
+.hercules-bar-row > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hercules-bar-track {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--nexus-soft);
+}
+
+.hercules-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    var(--nexus-accent),
+    #f59e0b
+  );
+}
+
+.hercules-bar-row > strong {
+  text-align: right;
+  font-size: 13px;
+}
+
+.hercules-detail-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.hercules-detail-card {
+  padding: 16px;
+}
+
+.hercules-detail-card h3 {
+  margin: 0 0 10px;
+  font-size: 17px;
+}
+
+.hercules-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dashed
+    var(--nexus-border);
+}
+
+.hercules-detail-row:last-child {
+  border-bottom: 0;
+}
+
+.hercules-detail-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--nexus-muted);
+  font-size: 12px;
+}
+
+.hercules-detail-row strong {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 1100px) {
+  .hercules-kpis,
+  .hercules-alert-grid,
+  .hercules-state-grid,
+  .hercules-chart-grid,
+  .hercules-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+
+/* NEXUS HERCULES VISUAL DEPTH */
+
+.hercules-v2 {
+  position: relative;
+}
+
+.hercules-kpis article {
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, .08),
+    0 2px 5px rgba(15, 23, 42, .04);
+  background:
+    linear-gradient(
+      145deg,
+      var(--nexus-surface),
+      color-mix(
+        in srgb,
+        var(--nexus-surface) 92%,
+        #f97316 8%
+      )
+    );
+  transition:
+    transform .18s ease,
+    box-shadow .18s ease;
+}
+
+.hercules-kpis article::after {
+  content: '';
+  position: absolute;
+  top: -35px;
+  right: -35px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background:
+    rgba(249, 115, 22, .08);
+}
+
+.hercules-kpis article:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 16px 32px rgba(15, 23, 42, .12),
+    0 4px 8px rgba(15, 23, 42, .05);
+}
+
+.hercules-section {
+  box-shadow:
+    0 14px 36px rgba(15, 23, 42, .07),
+    0 2px 6px rgba(15, 23, 42, .03);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(
+        in srgb,
+        var(--nexus-surface) 97%,
+        #ffffff 3%
+      ),
+      var(--nexus-surface)
+    );
+}
+
+.hercules-heading {
+  padding-bottom: 12px;
+  border-bottom:
+    1px solid var(--nexus-border);
+}
+
+.hercules-heading h2 {
+  font-size: 22px;
+}
+
+.hercules-alert-card {
+  box-shadow:
+    0 10px 22px rgba(15, 23, 42, .07);
+}
+
+.hercules-alert-card.is-ok {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(16, 185, 129, .08),
+      var(--nexus-surface) 55%
+    );
+}
+
+.hercules-state-card {
+  box-shadow:
+    0 9px 20px rgba(15, 23, 42, .06);
+  transition:
+    transform .18s ease,
+    box-shadow .18s ease;
+}
+
+.hercules-state-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 14px 28px rgba(15, 23, 42, .10);
+}
+
+.hercules-state-card header {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(37, 99, 235, .07),
+      rgba(249, 115, 22, .07)
+    );
+}
+
+.hercules-chart-card {
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, .07);
+  background:
+    linear-gradient(
+      160deg,
+      var(--nexus-surface),
+      color-mix(
+        in srgb,
+        var(--nexus-surface) 96%,
+        #2563eb 4%
+      )
+    );
+}
+
+.hercules-bar-track {
+  box-shadow:
+    inset 0 1px 2px rgba(15, 23, 42, .08);
+}
+
+.hercules-bar-fill {
+  box-shadow:
+    0 2px 5px rgba(249, 115, 22, .24);
+}
+
+.hercules-detail-grid {
+  align-items: start;
+}
+
+.hercules-detail-card {
+  box-shadow:
+    0 12px 28px rgba(15, 23, 42, .08);
+  background:
+    linear-gradient(
+      160deg,
+      var(--nexus-surface),
+      color-mix(
+        in srgb,
+        var(--nexus-surface) 96%,
+        #f97316 4%
+      )
+    );
+}
+
+.hercules-detail-card > h3 {
+  font-size: 19px;
+  margin-bottom: 3px;
+}
+
+.hercules-detail-subtitle {
+  margin:
+    0
+    0
+    14px;
+  color: var(--nexus-muted);
+  font-size: 12px;
+}
+
+.hercules-channel-groups {
+  display: grid;
+  gap: 13px;
+}
+
+.hercules-channel-group {
+  overflow: hidden;
+  border:
+    1px solid var(--nexus-border);
+  border-radius: 13px;
+  background:
+    var(--nexus-surface);
+  box-shadow:
+    0 5px 13px rgba(15, 23, 42, .05);
+}
+
+.hercules-channel-group > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding:
+    11px
+    13px;
+  border-bottom:
+    1px solid var(--nexus-border);
+  background:
+    linear-gradient(
+      100deg,
+      rgba(37, 99, 235, .08),
+      rgba(249, 115, 22, .08)
+    );
+}
+
+.hercules-channel-group > header span {
+  display: block;
+  color: var(--nexus-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.hercules-channel-group > header h4 {
+  margin: 2px 0 0;
+  font-size: 15px;
+}
+
+.hercules-channel-group > header > strong {
+  font-size: 20px;
+  color: var(--nexus-text);
+}
+
+.hercules-channel-body {
+  padding:
+    5px
+    12px
+    8px;
+}
+
+.hercules-channel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  padding:
+    6px
+    2px;
+  border-bottom:
+    1px dashed var(--nexus-border);
+}
+
+.hercules-channel-row:last-child {
+  border-bottom: 0;
+}
+
+.hercules-channel-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--nexus-muted);
+  font-size: 12px;
+}
+
+.hercules-channel-row strong {
+  flex: 0 0 auto;
+  font-size: 13px;
+}
+
+
+
+/* NEXUS HERCULES CHECKOUT STATUS */
+
+.hercules-detail-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.hercules-detail-title-row h3 {
+  margin: 0;
+}
+
+.hercules-checkout-status {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.hercules-checkout-status.is-ok {
+  color: #047857;
+  background: rgba(16, 185, 129, .13);
+  border: 1px solid rgba(16, 185, 129, .25);
+}
+
+.hercules-checkout-status.is-alert {
+  color: #b45309;
+  background: rgba(245, 158, 11, .14);
+  border: 1px solid rgba(245, 158, 11, .28);
+}
+
+.hercules-checkout-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.hercules-checkout-banner strong {
+  font-size: 22px;
+}
+
+.hercules-checkout-banner span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hercules-checkout-banner.is-ok {
+  color: #047857;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(16, 185, 129, .12),
+      rgba(16, 185, 129, .04)
+    );
+}
+
+.hercules-checkout-banner.is-alert {
+  color: #b45309;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(245, 158, 11, .15),
+      rgba(245, 158, 11, .05)
+    );
+}
+
+
+
+/* NEXUS HERCULES RECAUDO STATUS */
+
+.hercules-recaudo-status {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.hercules-recaudo-status.is-pending {
+  color: #b45309;
+  background: rgba(245, 158, 11, .14);
+  border: 1px solid rgba(245, 158, 11, .30);
+}
+
+.hercules-recaudo-status.is-ok {
+  color: #047857;
+  background: rgba(16, 185, 129, .13);
+  border: 1px solid rgba(16, 185, 129, .25);
+}
+
+.hercules-recaudo-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.hercules-recaudo-banner strong {
+  font-size: 22px;
+}
+
+.hercules-recaudo-banner span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hercules-recaudo-banner.is-pending {
+  color: #b45309;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(245, 158, 11, .16),
+      rgba(249, 115, 22, .05)
+    );
+}
+
+.hercules-recaudo-banner.is-ok {
+  color: #047857;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(16, 185, 129, .12),
+      rgba(16, 185, 129, .04)
+    );
+}
+
