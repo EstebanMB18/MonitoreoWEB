@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.routes.auth import router as auth_router
 from api.routes.dashboard import router as dashboard_router
 from api.routes.health import router as health_router
+from api.routes.general import router as general_router
 from api.routes.history import router as history_router
 from api.routes.monitors import router as monitors_router
 from api.routes.runs import router as runs_router
@@ -33,3 +34,4 @@ app.include_router(monitors_router, prefix="/api")
 app.include_router(runs_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
+app.include_router(general_router, prefix="/api")
