@@ -1,7 +1,9 @@
 import {
-  useEffect,
+useEffect,
   useState,
 } from 'react'
+
+import { AwsDetailV2 } from '../components/AwsDetailV2'
 
 import { StatusBadge } from '../components/StatusBadge'
 import { api } from '../services/api'
@@ -488,6 +490,368 @@ function PasarelasDetail({
   )
 }
 
+
+function formatAwsValue(
+  value: unknown,
+) {
+  if (
+    typeof value === 'number' &&
+    Number.isFinite(value)
+  ) {
+    return new Intl.NumberFormat(
+      'es-CO',
+    ).format(value)
+  }
+
+  if (
+    typeof value === 'string' &&
+    value.trim()
+  ) {
+    return value
+  }
+
+  return '?'
+}
+
+function safeMetricDetail(
+  value?: string | null,
+) {
+  if (!value) {
+    return null
+  }
+
+  const normalized =
+    value.replace(/\s+/g, ' ').trim()
+
+  if (!normalized) {
+    return null
+  }
+
+  if (normalized.length <= 180) {
+    return normalized
+  }
+
+  return `${normalized.slice(0, 177)}...`
+}
+
+export function AwsDetail({
+  details,
+}: {
+  details: StructuredMonitorDetails
+}) {
+  const groups =
+    details.groups ?? []
+
+  const summary =
+    details.summary ?? {}
+
+  const totalMetrics =
+    typeof summary.total_metrics === 'number'
+      ? summary.total_metrics
+      : groups.reduce(
+          (groupTotal, group) =>
+            groupTotal +
+            group.services.reduce(
+              (serviceTotal, service) =>
+                serviceTotal +
+                service.metrics.length,
+              0,
+            ),
+          0,
+        )
+
+  const validMetrics =
+    typeof summary.valid_metrics === 'number'
+      ? summary.valid_metrics
+      : null
+
+  const failedMetrics =
+    typeof summary.failed_metrics === 'number'
+      ? summary.failed_metrics
+      : null
+
+  const businessAlerts =
+    Array.isArray(details.business_alerts)
+      ? details.business_alerts.length
+      : 0
+
+  const technicalErrors =
+    Array.isArray(details.technical_errors)
+      ? details.technical_errors.length
+      : 0
+
+  const priorityIds = new Set([
+    'INTEROPPROD',
+    'MENSAJERIA',
+    'SERVICIOS RED',
+  ])
+
+  const priorityGroups =
+    groups.filter((group) =>
+      priorityIds.has(
+        group.id.toUpperCase(),
+      ),
+    )
+
+  const secondaryGroups =
+    groups.filter(
+      (group) =>
+        !priorityIds.has(
+          group.id.toUpperCase(),
+        ),
+    )
+
+  const renderService = (
+    service: (typeof groups)[number]['services'][number],
+  ) => (
+    <article
+      key={service.id}
+      className="aws-service-card"
+    >
+      <header className="aws-service-header">
+        <div>
+          <span>Servicio</span>
+
+          <h4>
+            {service.name}
+          </h4>
+        </div>
+
+        <span
+          className={`detail-pill ${detailStatusClass(
+            service.status,
+          )}`}
+        >
+          {service.status}
+        </span>
+      </header>
+
+      <div className="aws-metric-list">
+        {service.metrics.map(
+          (metric) => {
+            const detail =
+              safeMetricDetail(
+                metric.detail,
+              )
+
+            return (
+              <div
+                key={metric.id}
+                className="aws-metric-row"
+              >
+                <div className="aws-metric-main">
+                  <span>
+                    {metric.metric}
+                  </span>
+
+                  {detail && (
+                    <small>
+                      {detail}
+                    </small>
+                  )}
+                </div>
+
+                <strong>
+                  {formatAwsValue(
+                    metric.value,
+                  )}
+                </strong>
+
+                <span
+                  className={`detail-pill ${detailStatusClass(
+                    metric.status,
+                  )}`}
+                >
+                  {metric.status}
+                </span>
+              </div>
+            )
+          },
+        )}
+      </div>
+    </article>
+  )
+
+  const renderGroup = (
+    group: (typeof groups)[number],
+    featured = false,
+  ) => (
+    <section
+      key={group.id}
+      className={
+        featured
+          ? 'aws-group aws-group-featured'
+          : 'aws-group'
+      }
+    >
+      <header className="aws-group-header">
+        <div>
+          <span className="section-eyebrow">
+            AWS
+          </span>
+
+          <h3>
+            {group.name}
+          </h3>
+        </div>
+
+        <span>
+          {group.services.length}{' '}
+          {group.services.length === 1
+            ? 'servicio'
+            : 'servicios'}
+        </span>
+      </header>
+
+      <div className="aws-service-grid">
+        {group.services.map(
+          renderService,
+        )}
+      </div>
+    </section>
+  )
+
+  return (
+    <div className="aws-detail">
+      <section className="aws-summary-grid">
+        <article>
+          <span>
+            Métricas
+          </span>
+
+          <strong>
+            {formatAwsValue(
+              totalMetrics,
+            )}
+          </strong>
+        </article>
+
+        <article>
+          <span>
+            Válidas
+          </span>
+
+          <strong>
+            {formatAwsValue(
+              validMetrics,
+            )}
+          </strong>
+        </article>
+
+        <article>
+          <span>
+            Fallidas
+          </span>
+
+          <strong>
+            {formatAwsValue(
+              failedMetrics,
+            )}
+          </strong>
+        </article>
+
+        <article>
+          <span>
+            Alertas de negocio
+          </span>
+
+          <strong>
+            {businessAlerts}
+          </strong>
+        </article>
+
+        <article>
+          <span>
+            Errores técnicos
+          </span>
+
+          <strong>
+            {technicalErrors}
+          </strong>
+        </article>
+      </section>
+
+      {businessAlerts === 0 &&
+        technicalErrors === 0 && (
+          <section className="aws-all-clear">
+            <div className="aws-all-clear-icon">
+              ?
+            </div>
+
+            <div>
+              <strong>
+                Operación AWS sin alertas
+              </strong>
+
+              <span>
+                No se registran alertas
+                de negocio ni errores
+                técnicos en esta ejecución.
+              </span>
+            </div>
+          </section>
+        )}
+
+      <section className="aws-detail-section">
+        <div className="aws-section-heading">
+          <div>
+            <span className="section-eyebrow">
+              Operación principal
+            </span>
+
+            <h2>
+              Servicios críticos
+            </h2>
+          </div>
+
+          <span>
+            Pagos ? Mensajería ? Red
+          </span>
+        </div>
+
+        <div className="aws-priority-groups">
+          {priorityGroups.map(
+            (group) =>
+              renderGroup(
+                group,
+                true,
+              ),
+          )}
+        </div>
+      </section>
+
+      {secondaryGroups.length > 0 && (
+        <section className="aws-detail-section">
+          <div className="aws-section-heading">
+            <div>
+              <span className="section-eyebrow">
+                Componentes
+              </span>
+
+              <h2>
+                Controles complementarios
+              </h2>
+            </div>
+
+            <span>
+              {secondaryGroups.length}
+              {' '}grupos
+            </span>
+          </div>
+
+          <div className="aws-secondary-groups">
+            {secondaryGroups.map(
+              (group) =>
+                renderGroup(group),
+            )}
+          </div>
+        </section>
+      )}
+    </div>
+  )
+}
+
+
 export function MonitorDetailPage({
   monitor,
   onBack,
@@ -666,6 +1030,16 @@ export function MonitorDetailPage({
         structuredDetails &&
         monitor.id === 'pasarelas' && (
           <PasarelasDetail
+            details={structuredDetails}
+          />
+        )}
+
+      {!loading &&
+        !error &&
+        run &&
+        structuredDetails &&
+        monitor.id === 'aws' && (
+          <AwsDetailV2
             details={structuredDetails}
           />
         )}

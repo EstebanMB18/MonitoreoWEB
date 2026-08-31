@@ -3,6 +3,8 @@ import {
   useState,
 } from 'react'
 
+import { CompensarBrand } from '../components/CompensarBrand'
+
 import { api } from '../services/api'
 import {
   clearAccessToken,
@@ -139,21 +141,27 @@ export function AuthPage({
   return (
     <main className="auth-screen">
       <section className="auth-brand">
-        <div className="auth-brand-mark">
-          N
-        </div>
+        <div className="auth-brand-stack">
+          <CompensarBrand />
 
-        <div>
-          <span className="auth-eyebrow">
-            Centro de Monitoreo Compensar
-          </span>
+          <div className="auth-brand-product">
+            <div className="auth-brand-mark">
+              N
+            </div>
 
-          <h1>NEXUS</h1>
+            <div>
+              <span className="auth-eyebrow">
+                Centro de Monitoreo Compensar
+              </span>
 
-          <p>
-            Monitoreo, análisis y acción en una
-            sola plataforma.
-          </p>
+              <h1>NEXUS</h1>
+
+              <p>
+                Monitoreo, análisis y acción en una
+                sola plataforma.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
