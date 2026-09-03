@@ -16,6 +16,7 @@ from monitores.hercules.adapter import HerculesMonitor
 from monitores.pasarelas.adapter import PasarelasMonitor
 
 from core.publisher import publish_run
+from core.dashboard import generate_dashboard
 from core.execution_window import (
     resolve_general_execution_windows,
 )
@@ -685,6 +686,48 @@ def _execute_general_run(
             for item in children
         )
 
+        dashboard_path = None
+
+        if run_type == "OFFICIAL":
+            try:
+                from core.platform import (
+                    config_manager,
+                )
+
+                config = (
+                    config_manager.load()
+                )
+
+                output_root = Path(
+                    config[
+                        "output_directory"
+                    ]
+                )
+
+                dashboard_path = (
+                    generate_dashboard(
+                        output_root,
+                        selected=[
+                            "PASARELAS",
+                            "AWS",
+                            "HERCULES",
+                        ],
+                        fresh_after=None,
+                    )
+                )
+
+            except Exception as dashboard_exc:
+                with LOCK:
+                    RUNS[run_id].setdefault(
+                        "metadata",
+                        {},
+                    )[
+                        "general_dashboard_error"
+                    ] = (
+                        f"{type(dashboard_exc).__name__}: "
+                        f"{dashboard_exc}"
+                    )
+
         with LOCK:
             RUNS[run_id].update({
                 "status":
@@ -704,11 +747,56 @@ def _execute_general_run(
                     records,
             })
 
+            if dashboard_path is not None:
+                RUNS[run_id][
+                    "outputs"
+                ][
+                    "dashboard"
+                ] = str(
+                    dashboard_path
+                )
+
+                RUNS[run_id][
+                    "publish_allowed"
+                ] = True
+
             saved = dict(
                 RUNS[run_id]
             )
 
         save_run(saved)
+
+        if (
+            run_type == "OFFICIAL"
+            and dashboard_path is not None
+        ):
+            try:
+                publication = publish_run(
+                    saved
+                )
+            except Exception as publish_exc:
+                publication = {
+                    "published": False,
+                    "reason": (
+                        f"{type(publish_exc).__name__}: "
+                        f"{publish_exc}"
+                    ),
+                    "files": [],
+                }
+
+            with LOCK:
+                RUNS[run_id].setdefault(
+                    "metadata",
+                    {},
+                )[
+                    "publication"
+                ] = publication
+
+                saved = dict(
+                    RUNS[run_id]
+                )
+
+            save_run(saved)
 
     except Exception as exc:
 

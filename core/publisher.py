@@ -17,6 +17,7 @@ DEFAULT_PUBLISHER_CONFIG: dict[str, Any] = {
         "AWS": None,
         "PASARELAS": None,
         "HERCULES": None,
+        "GENERAL": None,
     },
     "allowed_outputs": [
         "dashboard",
@@ -127,6 +128,7 @@ def save_publisher_config(
         "AWS",
         "PASARELAS",
         "HERCULES",
+        "GENERAL",
     ):
         value = destinations.get(
             monitor
@@ -244,6 +246,7 @@ def publication_eligibility(
         "AWS",
         "PASARELAS",
         "HERCULES",
+        "GENERAL",
     }:
         return (
             False,
