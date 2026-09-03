@@ -16,6 +16,9 @@ from core.daily_closure import (
     close_all_monitors,
     close_monitor_day,
 )
+from core.monthly_history import (
+    build_monthly_history,
+)
 
 
 router = APIRouter()
@@ -199,6 +202,53 @@ def daily_history_monitor(
         "items": items,
         "total": len(items),
     }
+
+
+
+
+@router.get("/history/monthly")
+def monthly_history(
+    year: int,
+    month: int,
+    monitor: str | None = None,
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+            "OPERADOR",
+            "CONSULTA",
+        )
+    ),
+):
+    normalized_monitor = None
+
+    if monitor:
+        normalized_monitor = (
+            _validate_monitor(
+                monitor
+            )
+        )
+
+    if year < 2000:
+        raise HTTPException(
+            status_code=400,
+            detail="year invalido.",
+        )
+
+    if month < 1 or month > 12:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "month debe estar "
+                "entre 1 y 12."
+            ),
+        )
+
+    return build_monthly_history(
+        year=year,
+        month=month,
+        monitor=normalized_monitor,
+    )
 
 
 @router.post("/history/close")
