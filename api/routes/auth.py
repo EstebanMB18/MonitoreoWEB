@@ -55,7 +55,6 @@ def auth_status():
 
     return {
         "initialized": count > 0,
-        "users": count,
         "bootstrap_required": count == 0,
     }
 

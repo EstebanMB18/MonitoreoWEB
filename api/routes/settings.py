@@ -55,27 +55,52 @@ def _provider(value: str) -> str:
     return provider
 
 
-def _settings_payload() -> dict[str, Any]:
-    paths = ensure_user_directories()
+def _settings_payload(
+    *,
+    include_paths: bool = False,
+) -> dict[str, Any]:
     config = config_manager.load()
 
+    if include_paths:
+        visible_config = config
+    else:
+        visible_config = {
+            key: config.get(key)
+            for key in (
+                "schema_version",
+                "installation_mode",
+                "theme",
+                "start_minimized",
+            )
+        }
+
+    system = {
+        "platform": get_platform_name(),
+    }
+
+    if include_paths:
+        paths = ensure_user_directories()
+
+        system.update(
+            {
+                "user_data_directory": str(
+                    get_user_data_dir()
+                ),
+                "config_directory": str(
+                    paths["config"]
+                ),
+                "logs_directory": str(
+                    paths["logs"]
+                ),
+                "database_directory": str(
+                    paths["db"]
+                ),
+            }
+        )
+
     return {
-        "config": config,
-        "system": {
-            "platform": get_platform_name(),
-            "user_data_directory": str(
-                get_user_data_dir()
-            ),
-            "config_directory": str(
-                paths["config"]
-            ),
-            "logs_directory": str(
-                paths["logs"]
-            ),
-            "database_directory": str(
-                paths["db"]
-            ),
-        },
+        "config": visible_config,
+        "system": system,
         "secret_providers": sorted(
             SECRET_PROVIDERS
         ),
@@ -93,7 +118,16 @@ def get_settings(
         )
     ),
 ):
-    return _settings_payload()
+    role = str(
+        user.get("role")
+        or ""
+    ).upper()
+
+    return _settings_payload(
+        include_paths=(
+            role == "ADMIN"
+        )
+    )
 
 
 @router.put("/settings")
@@ -150,7 +184,9 @@ def update_settings(
             detail=str(exc),
         )
 
-    return _settings_payload()
+    return _settings_payload(
+        include_paths=True
+    )
 
 
 @router.get("/secrets/status")
