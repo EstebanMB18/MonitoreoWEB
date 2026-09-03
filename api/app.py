@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,11 +11,20 @@ from api.routes.history import router as history_router
 from api.routes.monitors import router as monitors_router
 from api.routes.runs import router as runs_router
 from api.routes.settings import router as settings_router
+from api.routes.aws_config import router as aws_config_router
+from core.aws_monitor_config import ensure_aws_monitor_config_seeded
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    ensure_aws_monitor_config_seeded()
+    yield
 
 
 app = FastAPI(
     title="Centro de Monitoreo V2",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -33,5 +44,6 @@ app.include_router(history_router, prefix="/api")
 app.include_router(monitors_router, prefix="/api")
 app.include_router(runs_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
+app.include_router(aws_config_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(general_router, prefix="/api")

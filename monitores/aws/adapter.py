@@ -90,6 +90,82 @@ class AWSMonitor(BaseMonitor):
     def execute(self) -> None:
         cfg = copy.deepcopy(self.cfg)
 
+        # La configuracion funcional dinamica AWS es la fuente
+        # primaria para region y thresholds. La configuracion
+        # tecnica legacy permanece como fallback temporal.
+        try:
+            from core.aws_monitor_config import (
+                ensure_aws_monitor_config_seeded,
+            )
+
+            dynamic_cfg = (
+                ensure_aws_monitor_config_seeded()
+            )
+
+            dynamic_region = str(
+                dynamic_cfg.get("region")
+                or ""
+            ).strip()
+
+            if dynamic_region:
+                cfg["app"]["region"] = (
+                    dynamic_region
+                )
+
+            merged_thresholds = copy.deepcopy(
+                cfg.get("thresholds", {})
+                or {}
+            )
+
+            for service in dynamic_cfg.get(
+                "services",
+                [],
+            ):
+                if not isinstance(
+                    service,
+                    dict,
+                ):
+                    continue
+
+                if not service.get(
+                    "activo",
+                    True,
+                ):
+                    continue
+
+                thresholds = service.get(
+                    "thresholds",
+                    {},
+                )
+
+                if not isinstance(
+                    thresholds,
+                    dict,
+                ):
+                    continue
+
+                for (
+                    threshold_key,
+                    threshold_value,
+                ) in thresholds.items():
+                    merged_thresholds[
+                        threshold_key
+                    ] = copy.deepcopy(
+                        threshold_value
+                    )
+
+            cfg["thresholds"] = (
+                merged_thresholds
+            )
+
+        except Exception as exc:
+            self.logger.warning(
+                "No fue posible aplicar "
+                "configuracion AWS dinamica; "
+                "se conserva fallback legacy: "
+                f"{exc}"
+            )
+
         corte = self._resolve_cut()
 
         self.logger.progress(

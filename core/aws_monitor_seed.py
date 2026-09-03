@@ -1,0 +1,356 @@
+from __future__ import annotations
+
+from typing import Any
+
+
+# Snapshot de la configuraci?n AWS legacy validada antes de migrar
+# el collector a configuraci?n din?mica.
+#
+# Este archivo es ?nicamente la semilla inicial. Despu?s de la
+# migraci?n, la fuente funcional ser?:
+# %LOCALAPPDATA%\Nexus\config\monitors\aws.json
+#
+# No contiene credenciales ni secretos.
+
+LEGACY_AWS_MONITOR_SEED: dict[str, Any] = \
+{'schema_version': 1,
+ 'region': 'us-east-1',
+ 'services': [{'id': 'apiorqpagos',
+               'nombre': 'API Orquestador Pagos',
+               'activo': True,
+               'profile': 'interopprod',
+               'log_group': '/aws/bwce/interop-prod-apiorqpagos',
+               'queries': [{'id': 'aprob_creacion_payu',
+                            'nombre': 'aprob_creacion_payu',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter OperationName = '/v1/payments - POST' | filter "
+                                     "Description = 'Finaliza consumo Rest PayU Payment' | stats count(*) as count",
+                            'activo': True},
+                           {'id': 'aprob_creacion_ecollect',
+                            'nombre': 'aprob_creacion_ecollect',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter OperationName = '/v1/payments - POST' | filter "
+                                     "Description = 'Finaliza consumo Rest Ecollect' | stats count(*) as count",
+                            'activo': True},
+                           {'id': 'aprob_estado_payu',
+                            'nombre': 'aprob_estado_payu',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter OperationName = '/v1/payments - GET' | filter "
+                                     "Description = 'Finaliza consumo Rest PayU' | stats count(*) as count",
+                            'activo': True},
+                           {'id': 'aprob_estado_ecollect',
+                            'nombre': 'aprob_estado_ecollect',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter OperationName = '/v1/payments - GET' | filter "
+                                     "Description = 'Finaliza consumo Rest Ecollect' | stats count(*) as count",
+                            'activo': True},
+                           {'id': 'aprob_receiver',
+                            'nombre': 'aprob_receiver',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter OperationName = '/v1/receiver' | filter Description = "
+                                     "'Finaliza consumo WS.ERPAgent, notifyMultiPayments' or Description = 'Finaliza "
+                                     "consumo BankAgent, invoiceMultiPayment' | stats count(*) as count",
+                            'activo': True},
+                           {'id': 'err_creacion_payu',
+                            'nombre': 'err_creacion_payu',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter OperationName = '/v1/payments - POST' | filter "
+                                     "Description = 'Error consumo Rest PayU' | stats count(*) as count",
+                            'activo': True},
+                           {'id': 'err_creacion_ecollect',
+                            'nombre': 'err_creacion_ecollect',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter OperationName = '/v1/payments - POST' | filter "
+                                     "Description = 'Error Consumo Ecollect' | stats count(*) as count",
+                            'activo': True},
+                           {'id': 'err_estado_payu',
+                            'nombre': 'err_estado_payu',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter OperationName = '/v1/payments - GET' | filter "
+                                     "Description = 'Error consumo Rest PayU' | stats count(*) as count",
+                            'activo': True},
+                           {'id': 'err_estado_ecollect',
+                            'nombre': 'err_estado_ecollect',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter OperationName = '/v1/payments - GET' | filter "
+                                     "Description = 'Error Consumo Ecollect' | stats count(*) as count",
+                            'activo': True},
+                           {'id': 'err_receiver',
+                            'nombre': 'err_receiver',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter OperationName = '/v1/receiver' | filter Description = "
+                                     "'Error consumo WS.ERPAgent, notifyMultiPayments' or Description = 'Error consumo "
+                                     "BankAgent, invoiceMultiPayment' or Description like /Error envio de "
+                                     'notificación/ | stats count(*) as count',
+                            'activo': True},
+                           {'id': 'err_log',
+                            'nombre': 'err_log',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter LogLevel = 'Error' | stats count(*) as count",
+                            'activo': True},
+                           {'id': 'err_mongodb_update',
+                            'nombre': 'err_mongodb_update',
+                            'tipo': 'COUNT',
+                            'query': 'fields @timestamp | filter @message like /Error Update MongoDB/ | stats count(*) '
+                                     'as count',
+                            'activo': True},
+                           {'id': 'pagos_errores_por_hora',
+                            'nombre': 'pagos_errores_por_hora',
+                            'tipo': 'DETAIL',
+                            'query': "fields @timestamp | filter Description = 'Error consumo Rest PayU' or "
+                                     "Description = 'Error Consumo Ecollect' or Description = 'Error consumo "
+                                     "WS.ERPAgent, notifyMultiPayments' or Description = 'Error consumo BankAgent, "
+                                     "invoiceMultiPayment' or Description like /Error envio de notificación/ | stats "
+                                     'count(*) as count by bin(1h) as hora | sort hora asc',
+                            'activo': True}],
+               'thresholds': {'api_pagos': {'errores_preocupantes_desde': 41},
+                              'mongodb': {'errores_alarmantes_desde': 11}}},
+              {'id': 'apisubsidios',
+               'nombre': 'API Subsidios',
+               'activo': True,
+               'profile': 'interopprod',
+               'log_group': '/aws/bwce/apisubsidios',
+               'queries': [{'id': 'error_cx',
+                            'nombre': 'error_cx',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter Description = 'ERROR en el procesamiento de la "
+                                     "creacion del archivo CX' | stats count(*) as count",
+                            'activo': True}],
+               'thresholds': {}},
+              {'id': 'tarjetatup',
+               'nombre': 'Tarjeta TUP',
+               'activo': True,
+               'profile': 'interopprod',
+               'log_group': '/aws/bwce/tarjetatup',
+               'queries': [{'id': 'tup_error',
+                            'nombre': 'tup_error',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter ispresent(MessageOut) and LogLevel = 'Error' | stats "
+                                     'count(*) as count',
+                            'activo': True},
+                           {'id': 'tup_por_hora',
+                            'nombre': 'tup_por_hora',
+                            'tipo': 'DETAIL',
+                            'query': "fields @timestamp | filter ispresent(MessageOut) and LogLevel = 'Error' | stats "
+                                     'count(*) as count by bin(1h) as hora | sort hora asc',
+                            'activo': True},
+                           {'id': 'tup_total_por_hora',
+                            'nombre': 'tup_total_por_hora',
+                            'tipo': 'DETAIL',
+                            'query': 'fields @timestamp | stats count(*) as count by bin(1h) as hora | sort hora asc',
+                            'activo': True},
+                           {'id': 'tup_resumen',
+                            'nombre': 'tup_resumen',
+                            'tipo': 'DETAIL',
+                            'query': 'fields @timestamp | stats count(*) as count, max(@timestamp) as '
+                                     'ultima_transaccion',
+                            'activo': True},
+                           {'id': 'tup_total_10m',
+                            'nombre': 'tup_total_10m',
+                            'tipo': 'DETAIL',
+                            'query': 'fields @timestamp | stats count(*) as count by bin(10m) as hora | sort hora asc',
+                            'activo': True},
+                           {'id': 'tup_errores_10m',
+                            'nombre': 'tup_errores_10m',
+                            'tipo': 'DETAIL',
+                            'query': "fields @timestamp | filter ispresent(MessageOut) and LogLevel = 'Error' | stats "
+                                     'count(*) as count by bin(10m) as hora | sort hora asc',
+                            'activo': True}],
+               'thresholds': {'tarjeta_tup': {'normal_max': 30,
+                                              'regular_max': 200,
+                                              'atencion_max': 250,
+                                              'preocupante_desde': 251}}},
+              {'id': 'apimoduloseguridad',
+               'nombre': 'API M?dulo Seguridad',
+               'activo': True,
+               'profile': 'interopprod',
+               'log_group': '/aws/bwce/apimoduloseguridad',
+               'queries': [{'id': 'seg_consulta_persona',
+                            'nombre': 'seg_consulta_persona',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter Description = 'Finaliza consumo servicio REST "
+                                     "ConsultaPersona' | stats count(*) as count",
+                            'activo': True},
+                           {'id': 'consulta_persona',
+                            'nombre': 'consulta_persona',
+                            'tipo': 'DETAIL',
+                            'query': 'fields @timestamp, IdConsumer, IpInvoker, IdComponentTransaction, OperationName, '
+                                     'Description, LogLevel, @message, MessageIn, MessageOut | filter Description = '
+                                     "'Finaliza consumo servicio REST ConsultaPersona' | sort @timestamp asc | limit "
+                                     '1000',
+                            'activo': True}],
+               'thresholds': {}},
+              {'id': 'serviciosred',
+               'nombre': 'Servicios Red',
+               'activo': True,
+               'profile': 'interopprod',
+               'log_group': '/aws/elastic/con/serviciosred',
+               'queries': [{'id': 'serviciosred_total',
+                            'nombre': 'serviciosred_total',
+                            'tipo': 'COUNT',
+                            'query': 'fields @timestamp | stats count(*) as count',
+                            'activo': True},
+                           {'id': 'serviciosred_resumen',
+                            'nombre': 'serviciosred_resumen',
+                            'tipo': 'DETAIL',
+                            'query': 'fields @timestamp | stats count(*) as count, max(@timestamp) as '
+                                     'ultima_notificacion',
+                            'activo': True},
+                           {'id': 'serviciosred_por_hora',
+                            'nombre': 'serviciosred_por_hora',
+                            'tipo': 'DETAIL',
+                            'query': 'fields @timestamp | stats count(*) as count by bin(1h) as hora | sort hora asc',
+                            'activo': True},
+                           {'id': 'serviciosred_10m',
+                            'nombre': 'serviciosred_10m',
+                            'tipo': 'DETAIL',
+                            'query': 'fields @timestamp | stats count(*) as count by bin(10m) as hora | sort hora asc',
+                            'activo': True}],
+               'thresholds': {'servicios_red': {'minutos_alerta': 60,
+                                                'minutos_revisar': 45,
+                                                'minimo_tup_ok_para_evaluar': 1}}},
+              {'id': 'apiorqpagos_proxy',
+               'nombre': 'API Orquestador Pagos Proxy',
+               'activo': True,
+               'profile': 'cscprod',
+               'log_group': '/aws/lambda/interop-prod-apiorqpagos-Proxy-PaymentsPost',
+               'queries': [{'id': 'csc_task_timed',
+                            'nombre': 'csc_task_timed',
+                            'tipo': 'COUNT',
+                            'query': 'fields @timestamp | filter @message like /Task timed/ | stats count(*) as count',
+                            'activo': True},
+                           {'id': 'csc_504',
+                            'nombre': 'csc_504',
+                            'tipo': 'COUNT',
+                            'query': 'fields @timestamp | filter @message like /504 Gateway Time-out/ | stats count(*) '
+                                     'as count',
+                            'activo': True}],
+               'thresholds': {}},
+              {'id': 'apimensajeria',
+               'nombre': 'API Mensajer?a',
+               'activo': True,
+               'profile': 'corporativoprod',
+               'log_group': '/aws/lambda/interop-prod-apimensajeria-APIMENSAJERIA',
+               'queries': [{'id': 'mens_timeout',
+                            'nombre': 'mens_timeout',
+                            'tipo': 'COUNT',
+                            'query': 'fields @timestamp | filter @message like /timeout/ | stats count(*) as count',
+                            'activo': True},
+                           {'id': 'mens_503',
+                            'nombre': 'mens_503',
+                            'tipo': 'COUNT',
+                            'query': 'fields @timestamp | filter @message like /503 Service Temporarily Unavailable/ | '
+                                     'stats count(*) as count',
+                            'activo': True},
+                           {'id': 'mens_502',
+                            'nombre': 'mens_502',
+                            'tipo': 'COUNT',
+                            'query': 'fields @timestamp | filter @message like /502 Bad Gateway/ | stats count(*) as '
+                                     'count',
+                            'activo': True},
+                           {'id': 'mens_report',
+                            'nombre': 'mens_report',
+                            'tipo': 'COUNT',
+                            'query': "filter @type = 'REPORT' | stats count(*) as count",
+                            'activo': True},
+                           {'id': 'mens_cannot',
+                            'nombre': 'mens_cannot',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter Httpcode != 200 and MessageIn.configS3.Broker = 'SD' "
+                                     '| stats count(*) as count',
+                            'activo': True},
+                           {'id': 'mens_sms_failed',
+                            'nombre': 'mens_sms_failed',
+                            'tipo': 'COUNT',
+                            'query': 'fields @timestamp | filter MessageOut.resSMS.message like /SMS messsage failed '
+                                     'to be sent/ | stats count(*) as count',
+                            'activo': True},
+                           {'id': 'mens_error_400_total',
+                            'nombre': 'mens_error_400_total',
+                            'tipo': 'COUNT',
+                            'query': 'fields @timestamp | filter Httpcode = 400 and OperationInvokerName in '
+                                     "['sendMessage','sendEMAIL','sendSMS','enviootp','EnviarSolicitud','ActualizarSolicitud'] "
+                                     '| stats count(*) as count',
+                            'activo': True},
+                           {'id': 'mens_exitos_200_total',
+                            'nombre': 'mens_exitos_200_total',
+                            'tipo': 'COUNT',
+                            'query': 'fields @timestamp | filter Httpcode = 200 and OperationInvokerName in '
+                                     "['sendMessage','sendEMAIL','sendSMS','enviootp','EnviarSolicitud','ActualizarSolicitud'] "
+                                     '| stats count(*) as count',
+                            'activo': True},
+                           {'id': 'otp_408',
+                            'nombre': 'otp_408',
+                            'tipo': 'COUNT',
+                            'query': 'fields @timestamp | filter Httpcode = 408 | stats count(*) as count',
+                            'activo': True},
+                           {'id': 'mensajeria_errores',
+                            'nombre': 'mensajeria_errores',
+                            'tipo': 'DETAIL',
+                            'query': 'fields @timestamp, IdConsumer, MessageIn.configS3.Broker, Httpcode, '
+                                     'OperationInvokerName, MessageOut, MessageOut.error | filter Httpcode != 200 and '
+                                     'OperationInvokerName in '
+                                     "['sendMessage','sendEMAIL','sendSMS','enviootp','EnviarSolicitud','ActualizarSolicitud'] "
+                                     '| stats count(*) as count, min(@timestamp) as desde, max(@timestamp) as hasta by '
+                                     'IdConsumer, MessageIn.configS3.Broker, Httpcode, OperationInvokerName, '
+                                     'MessageOut, MessageOut.error | sort count desc',
+                            'activo': True},
+                           {'id': 'mensajeria_exitos',
+                            'nombre': 'mensajeria_exitos',
+                            'tipo': 'DETAIL',
+                            'query': 'fields @timestamp, IdConsumer, MessageIn.configS3.Broker, Httpcode, '
+                                     'OperationInvokerName | filter Httpcode = 200 and OperationInvokerName in '
+                                     "['sendMessage','sendEMAIL','sendSMS','enviootp','EnviarSolicitud','ActualizarSolicitud'] "
+                                     '| stats count(*) as count by IdConsumer, MessageIn.configS3.Broker, Httpcode, '
+                                     'OperationInvokerName | sort count desc',
+                            'activo': True},
+                           {'id': 'mensajeria_400_por_hora',
+                            'nombre': 'mensajeria_400_por_hora',
+                            'tipo': 'DETAIL',
+                            'query': 'fields @timestamp | filter Httpcode = 400 | stats count(*) as count by bin(1h) '
+                                     'as hora | sort hora asc',
+                            'activo': True},
+                           {'id': 'mensajeria_errores_por_hora',
+                            'nombre': 'mensajeria_errores_por_hora',
+                            'tipo': 'DETAIL',
+                            'query': 'fields @timestamp, Httpcode, OperationInvokerName | filter Httpcode != 200 and '
+                                     'OperationInvokerName in '
+                                     "['sendMessage','sendEMAIL','sendSMS','enviootp','EnviarSolicitud','ActualizarSolicitud'] "
+                                     '| stats count(*) as count by bin(1h) as hora | sort hora asc',
+                            'activo': True},
+                           {'id': 'mensajeria_200_por_hora',
+                            'nombre': 'mensajeria_200_por_hora',
+                            'tipo': 'DETAIL',
+                            'query': 'fields @timestamp | filter Httpcode = 200 | stats count(*) as count by bin(1h) '
+                                     'as hora | sort hora asc',
+                            'activo': True}],
+               'thresholds': {'mensajeria': {'error_400_mismo_dato_desde': 101}}},
+              {'id': 'replicador',
+               'nombre': 'Replicador',
+               'activo': True,
+               'profile': 'corporativoprod',
+               'log_group': '/aws/lambda/Azdevops-Dynamic-apimodulosegu-ApiFunctionreplicar-T7MessxJe2ox',
+               'queries': [{'id': 'replicador',
+                            'nombre': 'replicador',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter OperationName = '/replicar' | stats count(*) as count",
+                            'activo': True},
+                           {'id': 'replicador_por_hora',
+                            'nombre': 'replicador_por_hora',
+                            'tipo': 'DETAIL',
+                            'query': "fields @timestamp | filter OperationName = '/replicar' | stats count(*) as count "
+                                     'by bin(1h) as hora | sort hora asc',
+                            'activo': True}],
+               'thresholds': {'replicador': {'minimo_replicaciones': 1}}},
+              {'id': 'validarotp',
+               'nombre': 'Validar OTP',
+               'activo': True,
+               'profile': 'corporativoprod',
+               'log_group': '/aws/lambda/interop-prod-apimoduloseguridad-validarotp',
+               'queries': [{'id': 'otp_500',
+                            'nombre': 'otp_500',
+                            'tipo': 'COUNT',
+                            'query': "fields @timestamp | filter message.Httpcode = '500' and "
+                                     "message.OperationInvokerName = 'ValidarOTP' | stats count(*) as count",
+                            'activo': True}],
+               'thresholds': {}}]}
