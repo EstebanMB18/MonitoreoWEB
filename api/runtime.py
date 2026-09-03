@@ -309,6 +309,7 @@ def create_general_run(
     window_end: str | None = None,
     last_n_hours: int | None = None,
     reason: str | None = None,
+    reuse_official_children: bool = False,
 ) -> dict[str, Any]:
 
     normalized_mode = str(
@@ -399,6 +400,8 @@ def create_general_run(
 
         "metadata": {
             "scope": "GENERAL",
+            "reuse_official_children":
+                reuse_official_children,
         },
 
         "details": {
@@ -424,6 +427,7 @@ def create_general_run(
             windows,
             run_type,
             reason,
+            reuse_official_children,
         ),
         daemon=True,
         name=(
@@ -441,6 +445,7 @@ def _execute_general_run(
     windows: dict[str, Any],
     run_type: str,
     reason: str | None,
+    reuse_official_children: bool = False,
 ) -> None:
 
     started = datetime.now()
@@ -463,25 +468,63 @@ def _execute_general_run(
     child_ids: dict[str, str] = {}
 
     try:
-        # Por ahora se crean los tres hijos usando
-        # el runtime nuevo. No se utiliza
-        # core/orchestrator.py heredado.
         for monitor in GENERAL_MONITORS:
+            monitor_key = monitor.upper()
+
             window = windows[
-                monitor.upper()
+                monitor_key
             ]
 
-            child = create_run(
-                monitor_id=monitor,
-                run_type=run_type,
-                cut=window.cut,
-                reason=reason,
-                execution_window=
-                    window.to_dict(),
-            )
+            child = None
+
+            if reuse_official_children:
+                candidates = [
+                    item
+                    for item in list_runs()
+                    if str(
+                        item.get("monitor")
+                        or ""
+                    ).upper() == monitor_key
+                    and str(
+                        item.get("run_type")
+                        or ""
+                    ).upper() == "OFFICIAL"
+                    and str(
+                        item.get("cut")
+                        or ""
+                    ) == str(window.cut)
+                    and str(
+                        item.get("data_date")
+                        or ""
+                    ) == str(
+                        window.data_date
+                    )
+                ]
+
+                if candidates:
+                    child = candidates[0]
+
+                if child is None:
+                    raise RuntimeError(
+                        "No existe ejecucion "
+                        "OFFICIAL para "
+                        f"{monitor_key} "
+                        f"{window.data_date} "
+                        f"corte {window.cut}."
+                    )
+
+            else:
+                child = create_run(
+                    monitor_id=monitor,
+                    run_type=run_type,
+                    cut=window.cut,
+                    reason=reason,
+                    execution_window=
+                        window.to_dict(),
+                )
 
             child_ids[
-                monitor.upper()
+                monitor_key
             ] = child["run_id"]
 
             with LOCK:
@@ -497,7 +540,7 @@ def _execute_general_run(
                     "children",
                     {},
                 )[
-                    monitor.upper()
+                    monitor_key
                 ] = {
                     "run_id":
                         child["run_id"],
@@ -510,6 +553,8 @@ def _execute_general_run(
                             "progress",
                             0,
                         ),
+                    "reused":
+                        reuse_official_children,
                 }
 
                 saved = dict(
@@ -536,6 +581,17 @@ def _execute_general_run(
                 )
 
                 with LOCK:
+                    previous_child = (
+                        RUNS[run_id][
+                            "details"
+                        ][
+                            "children"
+                        ].get(
+                            monitor,
+                            {},
+                        )
+                    )
+
                     RUNS[run_id][
                         "details"
                     ][
@@ -555,6 +611,11 @@ def _execute_general_run(
                         "records":
                             child.get(
                                 "records"
+                            ),
+                        "reused":
+                            previous_child.get(
+                                "reused",
+                                False,
                             ),
                     }
 

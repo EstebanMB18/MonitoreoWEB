@@ -13,12 +13,18 @@ from api.routes.runs import router as runs_router
 from api.routes.settings import router as settings_router
 from api.routes.aws_config import router as aws_config_router
 from core.aws_monitor_config import ensure_aws_monitor_config_seeded
+from core.monitor_scheduler import scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     ensure_aws_monitor_config_seeded()
-    yield
+    scheduler.start()
+
+    try:
+        yield
+    finally:
+        scheduler.stop()
 
 
 app = FastAPI(
