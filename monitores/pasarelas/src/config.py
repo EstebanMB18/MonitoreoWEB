@@ -34,8 +34,10 @@ UMBRAL_BAJA = float(os.getenv('UMBRAL_BAJA', '0.70'))
 UMBRAL_ALERTA = float(os.getenv('UMBRAL_ALERTA', '0.40'))
 PROMEDIO_MINIMO_ALERTA = float(os.getenv('PROMEDIO_MINIMO_ALERTA', '5'))
 
+# Compatibilidad exclusiva con scripts legacy.
+# Nexus V2 publica mediante core.publisher.
 SHAREPOINT_SALIDA = os.getenv(
     'SHAREPOINT_SALIDA',
-    r'C:\Users\esteban\OneDrive - Compensar\COORDINACION SOPORTE SOLUCIONES - Monitoreo diario\ECOLLECT'
+    '',
 ).strip()
 ECOLLECT_SELECTOR_TIMEOUT_SEGUNDOS = int(os.getenv('ECOLLECT_SELECTOR_TIMEOUT_SEGUNDOS', '300'))

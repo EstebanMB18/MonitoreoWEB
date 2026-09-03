@@ -32,10 +32,28 @@ STORAGE_STATE = STORAGE_DIR / "hercules_sesion.json"
 DOWNLOADS_DIR = BASE_DIR / "downloads"
 REPORTS_DIR = BASE_DIR / "reports"
 
-# Ruta local sincronizada de SharePoint/OneDrive.
-_DEFAULT_SHAREPOINT = r"C:\Users\esteban\OneDrive - Compensar\COORDINACION SOPORTE SOLUCIONES - Monitoreo diario\HERCULES"
-SHAREPOINT_SYNC_DIR = Path(os.getenv("SHAREPOINT_SYNC_DIR", _DEFAULT_SHAREPOINT).strip().strip('"'))
-MES_CONSOLIDAR = os.getenv("MES_CONSOLIDAR", "").strip()
+# Compatibilidad exclusiva con scripts legacy.
+# Nexus V2 publica mediante core.publisher y no depende
+# de una ruta personal de SharePoint/OneDrive.
+_sharepoint_raw = (
+    os.getenv(
+        "SHAREPOINT_SYNC_DIR",
+        "",
+    )
+    .strip()
+    .strip('"')
+)
+
+SHAREPOINT_SYNC_DIR = (
+    Path(_sharepoint_raw)
+    if _sharepoint_raw
+    else None
+)
+
+MES_CONSOLIDAR = os.getenv(
+    "MES_CONSOLIDAR",
+    "",
+).strip()
 
 AUTO_CONFIGURAR_FILTROS = os.getenv("AUTO_CONFIGURAR_FILTROS", "true").strip().lower() in ("1", "true", "yes", "si", "sí")
 HERCULES_REPORTE_TIPO = os.getenv("HERCULES_REPORTE_TIPO", "Reporte Personas").strip()
