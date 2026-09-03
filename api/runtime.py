@@ -15,6 +15,7 @@ from monitores.aws.adapter import AWSMonitor
 from monitores.hercules.adapter import HerculesMonitor
 from monitores.pasarelas.adapter import PasarelasMonitor
 
+from core.publisher import publish_run
 from core.execution_window import (
     resolve_general_execution_windows,
 )
@@ -153,7 +154,7 @@ def create_run(
             "reason": reason,
             "official": is_official,
             "historical": is_official,
-            "publish_allowed": False,
+            "publish_allowed": is_official,
             "api_execution": True,
             "execution_window":
                 execution_window or {},
@@ -210,7 +211,7 @@ def create_run(
         "progress": 0,
         "official": is_official,
         "historical": is_official,
-        "publish_allowed": False,
+        "publish_allowed": is_official,
         "installation_mode": "operator",
         "created_at": datetime.now().isoformat(),
         "started_at": None,
@@ -769,6 +770,42 @@ def _execute_run(run_id: str) -> None:
             })
 
             saved = dict(RUNS[run_id])
+
+        save_run(saved)
+
+        # Publicacion desacoplada del monitor.
+        # Un problema de OneDrive/SharePoint no debe
+        # convertir una ejecucion tecnica correcta en ERROR.
+        try:
+            publication = publish_run(
+                saved
+            )
+        except Exception as publish_exc:
+            publication = {
+                "published": False,
+                "reason": (
+                    f"{type(publish_exc).__name__}: "
+                    f"{publish_exc}"
+                ),
+                "files": [],
+            }
+
+        with LOCK:
+            item = RUNS.get(
+                run_id
+            )
+
+            if item is not None:
+                metadata = item.setdefault(
+                    "metadata",
+                    {},
+                )
+
+                metadata[
+                    "publication"
+                ] = publication
+
+                saved = dict(item)
 
         save_run(saved)
 
