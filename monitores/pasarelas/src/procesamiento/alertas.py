@@ -1,4 +1,7 @@
 from __future__ import annotations
+import json
+import os
+from pathlib import Path
 
 from datetime import datetime
 from pathlib import Path
@@ -60,6 +63,256 @@ def _corte_normalizado(corte) -> str:
     return str(corte or '09')
 
 
+
+MIN_MUESTRAS_BASELINE = 5
+
+
+def _baseline_path() -> Path:
+    base = Path(
+        os.getenv(
+            "LOCALAPPDATA",
+            str(
+                Path.home()
+                / "AppData"
+                / "Local"
+            ),
+        )
+    )
+
+    return (
+        base
+        / "Nexus"
+        / "config"
+        / "baselines"
+        / "pasarelas.json"
+    )
+
+
+def _baseline_hour(corte: str) -> int:
+    return {
+        "09": 8,
+        "13": 12,
+        "17": 16,
+    }.get(
+        _corte_normalizado(corte),
+        datetime.now().hour,
+    )
+
+
+def _codigo_vertical(value) -> str:
+    txt = str(
+        value or ""
+    ).strip()
+
+    for part in txt.split():
+        if (
+            len(part) == 5
+            and part.isdigit()
+        ):
+            return part
+
+    return txt[:5]
+
+
+def _medio_key(value) -> str:
+    return (
+        str(value or "")
+        .strip()
+        .upper()
+    )
+
+
+def _baseline_nexus(
+    corte: str,
+) -> pd.DataFrame:
+    columns = [
+        "codigo",
+        "medio_key",
+        "promedio_baseline",
+        "muestras_baseline",
+        "p10_baseline",
+        "p25_baseline",
+        "baseline_source",
+        "baseline_hour",
+        "baseline_day",
+    ]
+
+    path = _baseline_path()
+
+    if not path.exists():
+        return pd.DataFrame(
+            columns=columns
+        )
+
+    try:
+        data = json.loads(
+            path.read_text(
+                encoding="utf-8"
+            )
+        )
+    except Exception:
+        return pd.DataFrame(
+            columns=columns
+        )
+
+    hour = _baseline_hour(
+        corte
+    )
+
+    day = datetime.now().day
+
+    exact = {}
+
+    for item in (
+        data.get("items")
+        or []
+    ):
+        try:
+            if int(
+                item.get("hour")
+            ) != hour:
+                continue
+
+            if int(
+                item.get(
+                    "day_of_month"
+                )
+            ) != day:
+                continue
+
+            samples = int(
+                item.get("samples")
+                or 0
+            )
+
+            if samples < MIN_MUESTRAS_BASELINE:
+                continue
+
+            key = (
+                _codigo_vertical(
+                    item.get("vertical")
+                ),
+                _medio_key(
+                    item.get("medio")
+                ),
+            )
+
+            exact[key] = {
+                "codigo": key[0],
+                "medio_key": key[1],
+                "promedio_baseline":
+                    float(
+                        item.get(
+                            "average"
+                        )
+                        or 0
+                    ),
+                "muestras_baseline":
+                    samples,
+                "p10_baseline":
+                    float(
+                        item.get("p10")
+                        or 0
+                    ),
+                "p25_baseline":
+                    float(
+                        item.get("p25")
+                        or 0
+                    ),
+                "baseline_source":
+                    "NEXUS_EXACT",
+                "baseline_hour":
+                    hour,
+                "baseline_day":
+                    day,
+            }
+
+        except Exception:
+            continue
+
+    fallback = {}
+
+    for item in (
+        data.get(
+            "fallback_items"
+        )
+        or []
+    ):
+        try:
+            if int(
+                item.get("hour")
+            ) != hour:
+                continue
+
+            samples = int(
+                item.get("samples")
+                or 0
+            )
+
+            if samples < MIN_MUESTRAS_BASELINE:
+                continue
+
+            key = (
+                _codigo_vertical(
+                    item.get("vertical")
+                ),
+                _medio_key(
+                    item.get("medio")
+                ),
+            )
+
+            if key in exact:
+                continue
+
+            fallback[key] = {
+                "codigo": key[0],
+                "medio_key": key[1],
+                "promedio_baseline":
+                    float(
+                        item.get(
+                            "average"
+                        )
+                        or 0
+                    ),
+                "muestras_baseline":
+                    samples,
+                "p10_baseline":
+                    float(
+                        item.get("p10")
+                        or 0
+                    ),
+                "p25_baseline":
+                    float(
+                        item.get("p25")
+                        or 0
+                    ),
+                "baseline_source":
+                    "NEXUS_FALLBACK",
+                "baseline_hour":
+                    hour,
+                "baseline_day":
+                    day,
+            }
+
+        except Exception:
+            continue
+
+    rows = (
+        list(exact.values())
+        + list(fallback.values())
+    )
+
+    if not rows:
+        return pd.DataFrame(
+            columns=columns
+        )
+
+    return pd.DataFrame(
+        rows,
+        columns=columns,
+    )
+
+
 def _promedios_estaticos(corte: str) -> pd.DataFrame:
     # Compatibilidad: mientras el histórico aprende, 13 usa el mejor histórico
     # disponible y, si no existe, no inventa un promedio fijo.
@@ -118,6 +371,59 @@ def _promedios_historicos(corte: str, tipo_dia_actual: str) -> pd.DataFrame:
 def _agregar_promedio(df: pd.DataFrame, corte: str) -> pd.DataFrame:
     out = df.copy()
     tipo_actual = _tipo_dia_actual()
+
+    if "codigo" not in out.columns:
+        out["codigo"] = ""
+
+    out["codigo"] = (
+        out["codigo"]
+        .astype(str)
+        .str.replace(
+            ".0",
+            "",
+            regex=False,
+        )
+    )
+
+    if "medio_salida" in out.columns:
+        medio_base = out["medio_salida"]
+    elif "medio_pago" in out.columns:
+        medio_base = out["medio_pago"]
+    else:
+        medio_base = pd.Series(
+            "",
+            index=out.index,
+        )
+
+    out["medio_key"] = (
+        medio_base
+        .astype(str)
+        .str.strip()
+        .str.upper()
+    )
+
+    baseline = _baseline_nexus(
+        corte
+    )
+
+    if not baseline.empty:
+        out = out.merge(
+            baseline,
+            on=[
+                "codigo",
+                "medio_key",
+            ],
+            how="left",
+        )
+    else:
+        out["promedio_baseline"] = pd.NA
+        out["muestras_baseline"] = 0
+        out["p10_baseline"] = pd.NA
+        out["p25_baseline"] = pd.NA
+        out["baseline_source"] = pd.NA
+        out["baseline_hour"] = pd.NA
+        out["baseline_day"] = pd.NA
+
     hist = _promedios_historicos(corte, tipo_actual)
 
     if not hist.empty:
@@ -151,9 +457,64 @@ def _agregar_promedio(df: pd.DataFrame, corte: str) -> pd.DataFrame:
     out['promedio'] = 0.0
     out['fuente_promedio'] = 'APRENDIENDO'
 
-    suficiente = out['muestras_hist'] >= MIN_MUESTRAS_TIPO_DIA
-    out.loc[suficiente & ph.notna(), 'promedio'] = ph[suficiente & ph.notna()]
-    out.loc[suficiente & ph.notna(), 'fuente_promedio'] = 'HISTÓRICO ' + tipo_actual
+    pb = pd.to_numeric(
+        out.get(
+            'promedio_baseline'
+        ),
+        errors='coerce'
+    )
+
+    mb = pd.to_numeric(
+        out.get(
+            'muestras_baseline'
+        ),
+        errors='coerce'
+    ).fillna(0)
+
+    baseline_ok = (
+        (mb >= MIN_MUESTRAS_BASELINE)
+        & pb.notna()
+        & (pb > 0)
+    )
+
+    out.loc[
+        baseline_ok,
+        'promedio'
+    ] = pb[baseline_ok]
+
+    out.loc[
+        baseline_ok,
+        'fuente_promedio'
+    ] = out.loc[
+        baseline_ok,
+        'baseline_source'
+    ].fillna(
+        'NEXUS_BASELINE'
+    )
+
+    suficiente = (
+        out['muestras_hist']
+        >= MIN_MUESTRAS_TIPO_DIA
+    )
+
+    hist_mask = (
+        (out['fuente_promedio'] == 'APRENDIENDO')
+        & suficiente
+        & ph.notna()
+    )
+
+    out.loc[
+        hist_mask,
+        'promedio'
+    ] = ph[hist_mask]
+
+    out.loc[
+        hist_mask,
+        'fuente_promedio'
+    ] = (
+        'HIST?RICO '
+        + tipo_actual
+    )
 
     # Solo día hábil puede usar la base estática mientras aprende.
     base_mask = (
@@ -221,6 +582,84 @@ def aplicar_alertas(df, corte='09', *args, **kwargs):
             out.at[idx, 'observacion'] = (
                 f'Aprendiendo comportamiento de {r.get("tipo_dia_promedio", "este tipo de día")}: '
                 f'{int(r.get("muestras_hist", 0))}/{MIN_MUESTRAS_TIPO_DIA} muestras históricas del mismo corte.'
+            )
+            continue
+
+        baseline_source = str(
+            r.get(
+                'baseline_source',
+                ''
+            )
+            or ''
+        ).upper()
+
+        p10 = pd.to_numeric(
+            pd.Series([
+                r.get(
+                    'p10_baseline'
+                )
+            ]),
+            errors='coerce'
+        ).iloc[0]
+
+        p25 = pd.to_numeric(
+            pd.Series([
+                r.get(
+                    'p25_baseline'
+                )
+            ]),
+            errors='coerce'
+        ).iloc[0]
+
+        if (
+            baseline_source.startswith(
+                'NEXUS_'
+            )
+            and pd.notna(p10)
+            and pd.notna(p25)
+            and prom >= config.PROMEDIO_MINIMO_ALERTA
+        ):
+            muestras = int(
+                r.get(
+                    'muestras_baseline'
+                )
+                or 0
+            )
+
+            if ok < float(p10):
+                out.at[idx, 'estado'] = 'ALERTA'
+                out.at[idx, 'observacion'] = (
+                    f'Tr\u00e1fico anormalmente bajo seg\u00fan baseline Nexus: '
+                    f'{int(ok)} OK; esperado {prom:.2f}; '
+                    f'P10 {float(p10):.2f}; '
+                    f'{muestras} muestras; '
+                    f'fuente {baseline_source}.'
+                )
+                continue
+
+            if ok < float(p25):
+                out.at[idx, 'estado'] = 'BAJA TRANSACCI\u00d3N'
+                out.at[idx, 'observacion'] = (
+                    f'Tr\u00e1fico bajo seg\u00fan baseline Nexus: '
+                    f'{int(ok)} OK; esperado {prom:.2f}; '
+                    f'P25 {float(p25):.2f}; '
+                    f'{muestras} muestras; '
+                    f'fuente {baseline_source}.'
+                )
+                continue
+
+            # Si Nexus tiene baseline confiable y el valor
+            # esta por encima de P25, el volumen se considera
+            # normal. No se debe volver a evaluar con los
+            # umbrales porcentuales legacy.
+            out.at[idx, 'estado'] = 'NORMAL'
+            out.at[idx, 'observacion'] = (
+                f'Comportamiento dentro del rango esperado seg\u00fan '
+                f'baseline Nexus: {int(ok)} OK; '
+                f'esperado {prom:.2f}; '
+                f'P25 {float(p25):.2f}; '
+                f'{muestras} muestras; '
+                f'fuente {baseline_source}.'
             )
             continue
 

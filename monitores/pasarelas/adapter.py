@@ -549,6 +549,29 @@ class PasarelasMonitor(BaseMonitor):
                         "medio_salida": clean(
                             row.get("medio_salida")
                         ),
+                        "baseline": {
+                            "expected": clean(
+                                row.get("promedio")
+                            ),
+                            "p10": clean(
+                                row.get("p10_baseline")
+                            ),
+                            "p25": clean(
+                                row.get("p25_baseline")
+                            ),
+                            "samples": integer(
+                                row.get("muestras_baseline")
+                            ),
+                            "source": clean(
+                                row.get("baseline_source")
+                            ),
+                            "hour": clean(
+                                row.get("baseline_hour")
+                            ),
+                            "day": clean(
+                                row.get("baseline_day")
+                            ),
+                        },
                     })
 
                 statuses = {
