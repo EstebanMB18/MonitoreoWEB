@@ -3,6 +3,7 @@
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 
 from api.auth_dependencies import require_roles
 from pydantic import BaseModel
@@ -18,6 +19,9 @@ from core.daily_closure import (
 )
 from core.monthly_history import (
     build_monthly_history,
+)
+from core.monthly_report import (
+    export_monthly_report,
 )
 
 
@@ -248,6 +252,93 @@ def monthly_history(
         year=year,
         month=month,
         monitor=normalized_monitor,
+    )
+
+
+
+
+@router.get("/history/monthly/export")
+def monthly_history_export(
+    year: int,
+    month: int,
+    monitor: str | None = None,
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+            "OPERADOR",
+            "CONSULTA",
+        )
+    ),
+):
+    normalized_monitor = None
+
+    if monitor:
+        normalized_monitor = (
+            _validate_monitor(
+                monitor
+            )
+        )
+
+    if year < 2000:
+        raise HTTPException(
+            status_code=400,
+            detail="year invalido.",
+        )
+
+    if month < 1 or month > 12:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "month debe estar "
+                "entre 1 y 12."
+            ),
+        )
+
+    try:
+        target = export_monthly_report(
+            year=year,
+            month=month,
+            monitor=normalized_monitor,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "No fue posible generar "
+                "el reporte mensual."
+            ),
+        ) from exc
+
+    if not target.exists():
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "El reporte mensual "
+                "no fue generado."
+            ),
+        )
+
+    filename = (
+        f"Nexus_Mensual_"
+        f"{year:04d}_{month:02d}"
+    )
+
+    if normalized_monitor:
+        filename += (
+            f"_{normalized_monitor}"
+        )
+
+    filename += ".xlsx"
+
+    return FileResponse(
+        path=str(target),
+        filename=filename,
+        media_type=(
+            "application/"
+            "vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        ),
     )
 
 
