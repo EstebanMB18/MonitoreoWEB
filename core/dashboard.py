@@ -1109,7 +1109,7 @@ def _weekday_html(pas: pd.DataFrame, aws: dict, her: dict) -> str:
 
 
 # -----------------------------------------------------------------------------
-# Public API used by core.orchestrator.finalize()
+# Public API used by Nexus V2 runtime for General dashboards.
 # -----------------------------------------------------------------------------
 
 def generate_dashboard(root: Path, selected=None, fresh_after=None):
