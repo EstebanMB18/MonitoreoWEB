@@ -216,6 +216,31 @@ class PasarelasMonitor(BaseMonitor):
                 f"{type(exc).__name__}"
             )
 
+        required_credentials = (
+            "ECOLLECT_USER",
+            "ECOLLECT_PASSWORD",
+            "PAYU_USER",
+            "PAYU_PASSWORD",
+        )
+
+        missing_credentials = [
+            key
+            for key in required_credentials
+            if not str(env.get(key) or "").strip()
+        ]
+
+        if missing_credentials:
+            raise RuntimeError(
+                "Credenciales de Pasarelas incompletas. "
+                "Configure ECOLLECT y PAYU en RAMSS. "
+                "Faltan: " + ", ".join(missing_credentials)
+            )
+
+        env.setdefault(
+            "ECOLLECT_WORKER_TIMEOUT_SEGUNDOS",
+            "120",
+        )
+
         process = self._run_streaming_process(
             cmd,
             env=env,

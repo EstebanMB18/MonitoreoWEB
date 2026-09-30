@@ -96,7 +96,7 @@ def ejecutar_ecollect_secuencial(all_items, fi, ff):
 
         cmd, env = _worker_cmd([(codigo, tipo)], fi, ff, name, visible)
         proc = subprocess.Popen(cmd, cwd=str(ROOT), env=env)
-        worker_timeout_s = int(os.getenv("ECOLLECT_WORKER_TIMEOUT_SEGUNDOS", "720"))
+        worker_timeout_s = int(os.getenv("ECOLLECT_WORKER_TIMEOUT_SEGUNDOS", "120"))
 
         try:
             rc = proc.wait(timeout=worker_timeout_s)
