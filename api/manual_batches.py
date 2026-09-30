@@ -41,7 +41,13 @@ FAILED_STATUSES = {
     "ERROR",
     "TIMEOUT",
     "CANCELLED",
+    "NO_DATA",
+    "STALE",
 }
+
+RETRYABLE_STATUSES = set(
+    FAILED_STATUSES
+)
 
 
 def _parse_date(
@@ -386,6 +392,307 @@ def _execute_manual_batch(
     batch["metadata"] = metadata
 
     save_run_batch(batch)
+
+
+def _latest_runs_by_date(
+    batch_id: str,
+) -> dict[str, dict[str, Any]]:
+    latest: dict[str, dict[str, Any]] = {}
+
+    children = list_runs_by_batch(
+        batch_id
+    )
+
+    children.sort(
+        key=lambda item: str(
+            item.get("created_at")
+            or ""
+        )
+    )
+
+    for run in children:
+        data_date = str(
+            run.get("data_date")
+            or ""
+        )
+
+        if not data_date:
+            continue
+
+        latest[data_date] = run
+
+    return latest
+
+
+def _refresh_batch_from_latest_runs(
+    batch_id: str,
+) -> dict[str, Any] | None:
+    batch = get_run_batch(
+        batch_id
+    )
+
+    if batch is None:
+        return None
+
+    latest = _latest_runs_by_date(
+        batch_id
+    )
+
+    success = 0
+    failed = 0
+    active = 0
+
+    for run in latest.values():
+        status = str(
+            run.get("status")
+            or ""
+        ).upper()
+
+        if status in FAILED_STATUSES:
+            failed += 1
+        elif status in TERMINAL_STATUSES:
+            success += 1
+        else:
+            active += 1
+
+    total = int(
+        batch.get("total_days")
+        or 0
+    )
+
+    processed = success + failed
+
+    batch["completed_days"] = success
+    batch["failed_days"] = failed
+
+    batch["progress"] = (
+        int(
+            processed
+            * 100
+            / total
+        )
+        if total
+        else 0
+    )
+
+    if active:
+        batch["status"] = "RUNNING"
+        batch["finished_at"] = None
+
+    elif processed >= total and total > 0:
+        batch["progress"] = 100
+
+        batch["status"] = (
+            "COMPLETED_WITH_ERRORS"
+            if failed
+            else "COMPLETED"
+        )
+
+        batch["finished_at"] = (
+            datetime.now(
+                ZoneInfo(
+                    DEFAULT_TIMEZONE
+                )
+            ).isoformat()
+        )
+
+    save_run_batch(batch)
+
+    return batch
+
+
+def _watch_retry_run(
+    batch_id: str,
+    run_id: str,
+) -> None:
+    while True:
+        current = get_run(
+            run_id
+        )
+
+        if current is None:
+            return
+
+        status = str(
+            current.get("status")
+            or ""
+        ).upper()
+
+        if status in TERMINAL_STATUSES:
+            break
+
+        time.sleep(1)
+
+    _refresh_batch_from_latest_runs(
+        batch_id
+    )
+
+
+def retry_manual_run(
+    *,
+    batch_id: str,
+    run_id: str,
+    requested_by: str | None,
+) -> dict[str, Any]:
+    batch = get_run_batch(
+        batch_id
+    )
+
+    if batch is None:
+        raise LookupError(
+            "Consulta manual no encontrada."
+        )
+
+    if str(
+        batch.get("batch_type")
+        or ""
+    ).upper() != "MANUAL":
+        raise ValueError(
+            "El batch no es MANUAL."
+        )
+
+    runs = list_runs_by_batch(
+        batch_id
+    )
+
+    original = next(
+        (
+            item
+            for item in runs
+            if item.get("run_id")
+            == run_id
+        ),
+        None,
+    )
+
+    if original is None:
+        raise LookupError(
+            "Run no encontrado en este batch."
+        )
+
+    status = str(
+        original.get("status")
+        or ""
+    ).upper()
+
+    if status not in RETRYABLE_STATUSES:
+        raise ValueError(
+            "Solo se pueden reintentar runs "
+            "ERROR, TIMEOUT, CANCELLED, "
+            "NO_DATA o STALE."
+        )
+
+    data_date = str(
+        original.get("data_date")
+        or ""
+    )
+
+    if not data_date:
+        raise ValueError(
+            "El run no tiene data_date."
+        )
+
+    latest = _latest_runs_by_date(
+        batch_id
+    ).get(
+        data_date
+    )
+
+    if (
+        latest is None
+        or latest.get("run_id")
+        != run_id
+    ):
+        raise ValueError(
+            "Este run ya fue reemplazado "
+            "por un intento posterior."
+        )
+
+    window = (
+        resolve_monitor_execution_window(
+            monitor=batch["monitor"],
+            mode="DATE",
+            data_date=data_date,
+        )
+    )
+
+    reason = (
+        "Reintento manual"
+        + (
+            f" - {batch.get('reason')}"
+            if batch.get("reason")
+            else ""
+        )
+    )
+
+    child = create_run(
+        monitor_id=batch["monitor"],
+        run_type="MANUAL",
+        cut=None,
+        reason=reason,
+        execution_window=
+            window.to_dict(),
+        batch_id=batch_id,
+    )
+
+    metadata = (
+        batch.get("metadata")
+        or {}
+    )
+
+    retries = list(
+        metadata.get("retries")
+        or []
+    )
+
+    retries.append(
+        {
+            "original_run_id":
+                run_id,
+            "retry_run_id":
+                child["run_id"],
+            "data_date":
+                data_date,
+            "requested_by":
+                requested_by,
+            "requested_at":
+                datetime.now(
+                    ZoneInfo(
+                        DEFAULT_TIMEZONE
+                    )
+                ).isoformat(),
+        }
+    )
+
+    metadata["retries"] = retries
+    metadata["current_date"] = data_date
+
+    batch["metadata"] = metadata
+    batch["status"] = "RUNNING"
+    batch["finished_at"] = None
+
+    save_run_batch(batch)
+
+    thread = threading.Thread(
+        target=_watch_retry_run,
+        args=(
+            batch_id,
+            child["run_id"],
+        ),
+        daemon=True,
+        name=(
+            "manual-retry-"
+            + child["run_id"][:8]
+        ),
+    )
+
+    thread.start()
+
+    return {
+        "batch_id": batch_id,
+        "original_run_id": run_id,
+        "retry_run": child,
+    }
 
 
 def get_manual_batch(

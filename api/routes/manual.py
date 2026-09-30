@@ -12,6 +12,7 @@ from api.manual_batches import (
     create_manual_batch,
     get_manual_batch,
     list_manual_batches,
+    retry_manual_run,
 )
 
 
@@ -105,3 +106,43 @@ def batch_detail(
         )
 
     return item
+
+
+@router.post(
+    "/manual/batches/{batch_id}/retry/{run_id}"
+)
+def retry_batch_run(
+    batch_id: str,
+    run_id: str,
+    user: dict = Depends(
+        require_roles(
+            "ADMIN",
+            "MONITOR_OFICIAL",
+            "OPERADOR",
+        )
+    ),
+):
+    requested_by = str(
+        user.get("user_id")
+        or user.get("email")
+        or ""
+    ) or None
+
+    try:
+        return retry_manual_run(
+            batch_id=batch_id,
+            run_id=run_id,
+            requested_by=requested_by,
+        )
+
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
