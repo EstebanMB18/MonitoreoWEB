@@ -69,6 +69,7 @@ def init_db() -> None:
             "data_date": "TEXT",
             "window_start": "TEXT",
             "window_end": "TEXT",
+            "batch_id": "TEXT",
         }
 
         for column, sql_type in (
@@ -131,6 +132,60 @@ def init_db() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS run_batches (
+                batch_id TEXT PRIMARY KEY,
+                batch_type TEXT NOT NULL,
+                monitor TEXT NOT NULL,
+
+                start_date TEXT NOT NULL,
+                end_date TEXT NOT NULL,
+
+                reason TEXT,
+
+                status TEXT NOT NULL,
+                progress INTEGER NOT NULL DEFAULT 0,
+
+                total_days INTEGER NOT NULL DEFAULT 0,
+                completed_days INTEGER NOT NULL DEFAULT 0,
+                failed_days INTEGER NOT NULL DEFAULT 0,
+
+                requested_by TEXT,
+
+                created_at TEXT NOT NULL,
+                started_at TEXT,
+                finished_at TEXT,
+
+                metadata_json TEXT
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_run_batches_created_at
+            ON run_batches(created_at)
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_run_batches_monitor
+            ON run_batches(monitor)
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_runs_batch_id
+            ON runs(batch_id)
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS daily_closures (
                 monitor TEXT NOT NULL,
                 closure_date TEXT NOT NULL,
@@ -190,6 +245,7 @@ def save_run(run: dict[str, Any]) -> None:
                 data_date,
                 window_start,
                 window_end,
+                batch_id,
                 status,
                 progress,
                 official,
@@ -209,7 +265,7 @@ def save_run(run: dict[str, Any]) -> None:
             VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?
             )
             ON CONFLICT(run_id)
             DO UPDATE SET
@@ -223,6 +279,8 @@ def save_run(run: dict[str, Any]) -> None:
                     excluded.window_start,
                 window_end=
                     excluded.window_end,
+                batch_id=
+                    excluded.batch_id,
                 status=excluded.status,
                 progress=excluded.progress,
                 started_at=excluded.started_at,
@@ -246,6 +304,7 @@ def save_run(run: dict[str, Any]) -> None:
                 run.get("data_date"),
                 run.get("window_start"),
                 run.get("window_end"),
+                run.get("batch_id"),
                 run.get("status"),
                 run.get("progress", 0),
                 int(bool(run.get("official"))),
@@ -517,3 +576,139 @@ def get_latest_daily_closure(
     )
 
     return item
+
+
+def save_run_batch(
+    batch: dict[str, Any],
+) -> None:
+    init_db()
+
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO run_batches (
+                batch_id,
+                batch_type,
+                monitor,
+                start_date,
+                end_date,
+                reason,
+                status,
+                progress,
+                total_days,
+                completed_days,
+                failed_days,
+                requested_by,
+                created_at,
+                started_at,
+                finished_at,
+                metadata_json
+            )
+            VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?
+            )
+            ON CONFLICT(batch_id)
+            DO UPDATE SET
+                status=excluded.status,
+                progress=excluded.progress,
+                completed_days=
+                    excluded.completed_days,
+                failed_days=
+                    excluded.failed_days,
+                started_at=
+                    excluded.started_at,
+                finished_at=
+                    excluded.finished_at,
+                metadata_json=
+                    excluded.metadata_json
+            """,
+            (
+                batch.get("batch_id"),
+                batch.get("batch_type"),
+                batch.get("monitor"),
+                batch.get("start_date"),
+                batch.get("end_date"),
+                batch.get("reason"),
+                batch.get("status"),
+                batch.get("progress", 0),
+                batch.get("total_days", 0),
+                batch.get("completed_days", 0),
+                batch.get("failed_days", 0),
+                batch.get("requested_by"),
+                batch.get("created_at"),
+                batch.get("started_at"),
+                batch.get("finished_at"),
+                json.dumps(
+                    batch.get("metadata", {}),
+                    ensure_ascii=False,
+                ),
+            ),
+        )
+
+        conn.commit()
+
+
+def get_run_batch(
+    batch_id: str,
+) -> dict[str, Any] | None:
+    init_db()
+
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM run_batches
+            WHERE batch_id = ?
+            """,
+            (batch_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    item = dict(row)
+
+    item["metadata"] = json.loads(
+        item.pop("metadata_json", None)
+        or "{}"
+    )
+
+    return item
+
+
+def list_run_batches() -> list[dict[str, Any]]:
+    init_db()
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM run_batches
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
+
+    items = []
+
+    for row in rows:
+        item = dict(row)
+
+        item["metadata"] = json.loads(
+            item.pop("metadata_json", None)
+            or "{}"
+        )
+
+        items.append(item)
+
+    return items
+
+
+def list_runs_by_batch(
+    batch_id: str,
+) -> list[dict[str, Any]]:
+    return [
+        item
+        for item in list_saved_runs()
+        if item.get("batch_id") == batch_id
+    ]
