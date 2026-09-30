@@ -95,6 +95,7 @@ def create_run(
     cut: str | None,
     reason: str | None,
     execution_window: dict[str, Any] | None = None,
+    batch_id: str | None = None,
 ) -> dict[str, Any]:
 
     key = monitor_id.lower()
@@ -157,6 +158,7 @@ def create_run(
             "historical": is_official,
             "publish_allowed": is_official,
             "api_execution": True,
+            "batch_id": batch_id,
             "execution_window":
                 execution_window or {},
         },
@@ -171,6 +173,7 @@ def create_run(
 
     item = {
         "run_id": run_id,
+        "batch_id": batch_id,
         "monitor": key.upper(),
         "run_type": run_type,
         "cut": cut,
@@ -838,6 +841,15 @@ def _execute_run(run_id: str) -> None:
         RUNS[run_id]["status"] = "PREPARING"
         RUNS[run_id]["started_at"] = datetime.now().isoformat()
 
+        saved = dict(
+            RUNS[run_id]
+        )
+
+    # Persistir PREPARING antes de entrar al monitor.
+    # Si una fuente tarda o el proceso se interrumpe,
+    # el run no debe quedar registrado como PENDING.
+    save_run(saved)
+
     try:
         result = monitor.run()
         result_data = result.to_dict()
@@ -939,10 +951,29 @@ def _sync_live_state(run_id: str) -> None:
         if item is None:
             return
 
-        item["status"] = data.get(
-            "status",
-            item.get("status"),
-        )
+        current_status = str(
+            item.get("status")
+            or ""
+        ).upper()
+
+        incoming_status = str(
+            data.get("status")
+            or ""
+        ).upper()
+
+        # No permitir que el estado vivo del monitor
+        # haga retroceder un run ya iniciado a PENDING.
+        if not (
+            current_status in {
+                "PREPARING",
+                "RUNNING",
+            }
+            and incoming_status == "PENDING"
+        ):
+            item["status"] = data.get(
+                "status",
+                item.get("status"),
+            )
 
         item["details"] = data.get(
             "details",
