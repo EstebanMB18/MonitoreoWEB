@@ -10,7 +10,7 @@ from datetime import (
     timedelta,
 )
 
-from api.storage import get_connection
+from core.persistence import get_connection
 from core.platform import get_secret_store
 from core.security.totp import (
     build_otpauth_uri,
