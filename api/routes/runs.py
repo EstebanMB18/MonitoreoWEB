@@ -72,6 +72,26 @@ def _allowed_output_roots() -> list[Path]:
     return roots
 
 
+def _public_outputs(item: dict) -> dict:
+    outputs = item.get("outputs") or {}
+
+    return {
+        "dashboard": {
+            "output_id": "dashboard",
+            "available": bool(outputs.get("dashboard")),
+        },
+        "excel": {
+            "output_id": "excel",
+            "available": bool(outputs.get("excel")),
+        },
+    }
+
+
+def _public_run(item: dict) -> dict:
+    public = dict(item)
+    public["outputs"] = _public_outputs(item)
+    return public
+
 def _resolve_safe_output(
     run_id: str,
     output_id: str,
@@ -252,9 +272,14 @@ def runs(
 ):
     items = list_runs()
 
+    public_items = [
+        _public_run(item)
+        for item in items
+    ]
+
     return {
-        "items": items,
-        "total": len(items),
+        "items": public_items,
+        "total": len(public_items),
     }
 
 
@@ -278,7 +303,7 @@ def run_detail(
             detail="Ejecuci?n no encontrada.",
         )
 
-    return item
+    return _public_run(item)
 
 @router.get("/runs/{run_id}/outputs/{output_id}")
 def run_output(
@@ -312,4 +337,3 @@ def run_output(
             "officedocument.spreadsheetml.sheet"
         ),
     )
-
