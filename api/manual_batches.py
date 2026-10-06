@@ -403,6 +403,29 @@ def _latest_runs_by_date(
         batch_id
     )
 
+    # Preferir estado vivo del runtime cuando el run sigue
+    # ejecutandose. La copia persistida puede tener progreso
+    # atrasado entre sincronizaciones.
+    live_children = []
+
+    for child in children:
+        run_id = str(
+            child.get("run_id")
+            or ""
+        )
+
+        live = (
+            get_run(run_id)
+            if run_id
+            else None
+        )
+
+        live_children.append(
+            live or child
+        )
+
+    children = live_children
+
     children.sort(
         key=lambda item: str(
             item.get("created_at")
@@ -441,6 +464,7 @@ def _refresh_batch_from_latest_runs(
     success = 0
     failed = 0
     active = 0
+    active_progress = 0
 
     for run in latest.values():
         status = str(
@@ -455,6 +479,25 @@ def _refresh_batch_from_latest_runs(
         else:
             active += 1
 
+            try:
+                run_progress = int(
+                    run.get("progress")
+                    or 0
+                )
+            except (
+                TypeError,
+                ValueError,
+            ):
+                run_progress = 0
+
+            active_progress += max(
+                0,
+                min(
+                    100,
+                    run_progress,
+                ),
+            )
+
     total = int(
         batch.get("total_days")
         or 0
@@ -467,8 +510,10 @@ def _refresh_batch_from_latest_runs(
 
     batch["progress"] = (
         int(
-            processed
-            * 100
+            (
+                processed * 100
+                + active_progress
+            )
             / total
         )
         if total
