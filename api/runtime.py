@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -835,6 +835,90 @@ def _execute_general_run(
 
 
 
+def _refresh_past_official_closure(
+    run: dict[str, Any],
+) -> None:
+    """
+    Recalcula el cierre diario cuando termina un run OFFICIAL
+    correspondiente a una fecha pasada.
+
+    El refresco historico es best-effort: nunca debe convertir
+    un run tecnico correcto en ERROR.
+    """
+    if str(
+        run.get("run_type")
+        or ""
+    ).upper() != "OFFICIAL":
+        return
+
+    if not bool(run.get("official")):
+        return
+
+    if not bool(run.get("historical")):
+        return
+
+    monitor = str(
+        run.get("monitor")
+        or ""
+    ).upper()
+
+    if monitor not in {
+        "AWS",
+        "PASARELAS",
+        "HERCULES",
+    }:
+        return
+
+    status = str(
+        run.get("status")
+        or ""
+    ).upper()
+
+    if status not in {
+        "OK",
+        "WARNING",
+        "ERROR",
+        "TIMEOUT",
+        "CANCELLED",
+        "NO_DATA",
+        "STALE",
+    }:
+        return
+
+    data_date = str(
+        run.get("data_date")
+        or ""
+    )[:10]
+
+    if not data_date:
+        return
+
+    try:
+        target_date = date.fromisoformat(
+            data_date
+        )
+    except ValueError:
+        return
+
+    if target_date >= date.today():
+        return
+
+    try:
+        from core.daily_closure import (
+            close_monitor_day,
+        )
+
+        close_monitor_day(
+            monitor=monitor,
+            closure_date=data_date,
+        )
+
+    except Exception:
+        # El cierre historico no forma parte del resultado
+        # tecnico del monitor y no debe romper el run.
+        return
+
+
 def _execute_run(run_id: str) -> None:
     with LOCK:
         monitor = MONITOR_OBJECTS[run_id]
@@ -872,6 +956,10 @@ def _execute_run(run_id: str) -> None:
             saved = dict(RUNS[run_id])
 
         save_run(saved)
+
+        _refresh_past_official_closure(
+            saved
+        )
 
         # Publicacion desacoplada del monitor.
         # Un problema de OneDrive/SharePoint no debe
@@ -921,6 +1009,10 @@ def _execute_run(run_id: str) -> None:
             saved = dict(RUNS[run_id])
 
         save_run(saved)
+
+        _refresh_past_official_closure(
+            saved
+        )
 
 
 def _sync_live_state(run_id: str) -> None:
