@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from api.auth_dependencies import (
     require_roles,
 )
+from api.public_serializers import public_run
 from api.manual_batches import (
     create_manual_batch,
     get_manual_batch,
@@ -105,7 +106,13 @@ def batch_detail(
             ),
         )
 
-    return item
+    public = dict(item)
+    public["runs"] = [
+        public_run(run)
+        for run in item.get("runs", [])
+    ]
+
+    return public
 
 
 @router.post(
@@ -129,11 +136,24 @@ def retry_batch_run(
     ) or None
 
     try:
-        return retry_manual_run(
+        result = retry_manual_run(
             batch_id=batch_id,
             run_id=run_id,
             requested_by=requested_by,
         )
+
+        public = dict(result)
+
+        retry_run = result.get(
+            "retry_run"
+        )
+
+        if retry_run:
+            public["retry_run"] = public_run(
+                retry_run
+            )
+
+        return public
 
     except LookupError as exc:
         raise HTTPException(

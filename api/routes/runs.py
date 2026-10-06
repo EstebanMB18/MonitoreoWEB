@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from api.auth_dependencies import require_roles
+from api.public_serializers import public_run
 
 from api.runtime import (
     MONITOR_REGISTRY,
@@ -71,26 +72,6 @@ def _allowed_output_roots() -> list[Path]:
 
     return roots
 
-
-def _public_outputs(item: dict) -> dict:
-    outputs = item.get("outputs") or {}
-
-    return {
-        "dashboard": {
-            "output_id": "dashboard",
-            "available": bool(outputs.get("dashboard")),
-        },
-        "excel": {
-            "output_id": "excel",
-            "available": bool(outputs.get("excel")),
-        },
-    }
-
-
-def _public_run(item: dict) -> dict:
-    public = dict(item)
-    public["outputs"] = _public_outputs(item)
-    return public
 
 def _resolve_safe_output(
     run_id: str,
@@ -273,7 +254,7 @@ def runs(
     items = list_runs()
 
     public_items = [
-        _public_run(item)
+        public_run(item)
         for item in items
     ]
 
@@ -303,7 +284,7 @@ def run_detail(
             detail="Ejecuci?n no encontrada.",
         )
 
-    return _public_run(item)
+    return public_run(item)
 
 @router.get("/runs/{run_id}/outputs/{output_id}")
 def run_output(
