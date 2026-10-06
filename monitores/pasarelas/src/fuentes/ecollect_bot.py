@@ -766,7 +766,7 @@ def validar_codigo_csv_descargado(path, codigo_esperado):
     codigos = detectar_codigos_en_csv(p)
     if not codigos:
         raise RuntimeError(
-            f"No pude validar el comercio del CSV {p.name}: no encontrÃ© un cÃ³digo 416xx en el contenido."
+            f"No pude validar el comercio del CSV {p.name}: no encontre un codigo 416xx en el contenido."
         )
 
     otros = sorted(c for c in codigos if c != esperado)
@@ -777,7 +777,7 @@ def validar_codigo_csv_descargado(path, codigo_esperado):
             "Se descarta y se reintenta la consulta."
         )
 
-    print(f"  VALIDACIÃ“N CSV OK: solicitado {esperado} / contenido {esperado}")
+    print(f"  VALIDACION CSV OK: solicitado {esperado} / contenido {esperado}")
     return True
 
 def _formulario_postback_csv(page):

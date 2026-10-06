@@ -77,7 +77,7 @@ def resumir_payu(path, vertical="41621 RED TIENDA"):
     if not valor_col: faltantes.append("Transaction value/Valor")
     if faltantes:
         raise ValueError(
-            "No encontrÃ© columnas PayU requeridas: " + ", ".join(faltantes)
+            "No se encontraron columnas PayU requeridas: " + ", ".join(faltantes)
             + f". Columnas recibidas: {list(df.columns)}"
         )
 
