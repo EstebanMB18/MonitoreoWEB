@@ -68,6 +68,49 @@ def _normalize_hour(
     return parsed.hour
 
 
+def _project_root() -> Path:
+    return Path(__file__).resolve().parents[1]
+
+
+def _festivos() -> set[str]:
+    path = (
+        _project_root()
+        / "GENERAL"
+        / "calendario_festivos.txt"
+    )
+
+    if not path.exists():
+        return set()
+
+    try:
+        return {
+            line.strip()
+            for line
+            in path.read_text(
+                encoding="utf-8-sig"
+            ).splitlines()
+            if line.strip()
+            and not line.lstrip().startswith("#")
+        }
+    except Exception:
+        return set()
+
+
+def _tipo_dia(
+    value,
+    festivos: set[str],
+) -> str:
+    iso = value.isoformat()
+
+    if (
+        value.weekday() >= 5
+        or iso in festivos
+    ):
+        return "FIN_SEMANA_FESTIVO"
+
+    return "HABIL"
+
+
 def _percentile(
     values: list[float],
     percentile: float,
@@ -415,6 +458,18 @@ def build_pasarelas_baseline(
         list[float],
     ] = defaultdict(list)
 
+    weekday_grouped: dict[
+        tuple[str, str, int, int],
+        list[float],
+    ] = defaultdict(list)
+
+    tipo_dia_grouped: dict[
+        tuple[str, str, int, str],
+        list[float],
+    ] = defaultdict(list)
+
+    festivos = _festivos()
+
     valid_dates = []
     invalid_rows = 0
 
@@ -468,7 +523,7 @@ def build_pasarelas_baseline(
             )
 
             # Descarta registros da?ados del
-            # cache hist?rico (ej. a?o 1900).
+            # cache historico (ej. ano 1900).
             if parsed_date.year < 2000:
                 invalid_rows += 1
                 continue
@@ -526,6 +581,31 @@ def build_pasarelas_baseline(
             quantity
         )
 
+        weekday_grouped[
+            (
+                vertical,
+                medio,
+                hour,
+                parsed_date.weekday(),
+            )
+        ].append(
+            quantity
+        )
+
+        tipo_dia_grouped[
+            (
+                vertical,
+                medio,
+                hour,
+                _tipo_dia(
+                    parsed_date,
+                    festivos,
+                ),
+            )
+        ].append(
+            quantity
+        )
+
     if not valid_dates:
         raise RuntimeError(
             "No se encontraron registros "
@@ -571,8 +651,45 @@ def build_pasarelas_baseline(
             **_stats(values),
         })
 
+    weekday_items = []
+
+    for (
+        vertical,
+        medio,
+        hour,
+        weekday,
+    ), values in sorted(
+        weekday_grouped.items()
+    ):
+        weekday_items.append({
+            "vertical": vertical,
+            "medio": medio,
+            "hour": hour,
+            "weekday": weekday,
+            **_stats(values),
+        })
+
+    tipo_dia_items = []
+
+    for (
+        vertical,
+        medio,
+        hour,
+        tipo_dia,
+    ), values in sorted(
+        tipo_dia_grouped.items()
+    ):
+        tipo_dia_items.append({
+            "vertical": vertical,
+            "medio": medio,
+            "hour": hour,
+            "tipo_dia": tipo_dia,
+            **_stats(values),
+        })
+
+
     baseline = {
-        "schema_version": 1,
+        "schema_version": 2,
         "monitor": "PASARELAS",
         "source": {
             "file_name":
@@ -618,6 +735,22 @@ def build_pasarelas_baseline(
         ],
         "items":
             baseline_items,
+        "weekday_key": [
+            "vertical",
+            "medio",
+            "hour",
+            "weekday",
+        ],
+        "weekday_items":
+            weekday_items,
+        "tipo_dia_key": [
+            "vertical",
+            "medio",
+            "hour",
+            "tipo_dia",
+        ],
+        "tipo_dia_items":
+            tipo_dia_items,
         "fallback_key": [
             "vertical",
             "medio",

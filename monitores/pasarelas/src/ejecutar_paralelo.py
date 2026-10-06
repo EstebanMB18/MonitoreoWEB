@@ -154,6 +154,15 @@ def main():
         args.hora_inicio, args.hora_fin
     )
 
+    fecha_referencia = (
+        datetime.strptime(
+            fi[:10],
+            "%d/%m/%Y",
+        )
+        .date()
+        .isoformat()
+    )
+
     verticales = cargar_verticales()
     eco_items = (
         verticales[verticales.origen.eq("ECOLLECT")]
@@ -199,6 +208,7 @@ def main():
     df, html, excel = procesar_archivos(
         corte=args.corte,
         publicar=not args.no_publicar,
+        fecha_referencia=fecha_referencia,
     )
 
     print("")

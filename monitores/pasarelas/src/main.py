@@ -73,11 +73,25 @@ def publicar_salida(out_html=None, out_excel=None):
             print(f'Advertencia: no pude copiar {src.name} a SharePoint: {e}')
 
 
-def actualizar_historico_corte(df, corte='09'):
+def actualizar_historico_corte(
+    df,
+    corte='09',
+    fecha_referencia=None,
+):
     if df.empty:
         return None
-    hoy = datetime.now().strftime('%Y-%m-%d')
-    ahora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    hoy = (
+        str(fecha_referencia)[:10]
+        if fecha_referencia
+        else datetime.now().strftime(
+            '%Y-%m-%d'
+        )
+    )
+
+    ahora = datetime.now().strftime(
+        '%Y-%m-%d %H:%M:%S'
+    )
     corte_txt = '09' if str(corte).startswith('09') else ('17' if str(corte).startswith('17') else str(corte))
     hist = config.HISTORICO / 'acumulado_por_corte.xlsx'
     base = df.copy()
@@ -99,7 +113,11 @@ def actualizar_historico_corte(df, corte='09'):
 
 
 
-def procesar_archivos(corte='09', publicar=True):
+def procesar_archivos(
+    corte='09',
+    publicar=True,
+    fecha_referencia=None,
+):
     verticales = cargar_verticales()
     resultados = []
     files = list(config.DESCARGAS.glob('*'))
@@ -188,8 +206,17 @@ def procesar_archivos(corte='09', publicar=True):
         df['es_credito'] = df['es_credito'].astype(str).str.lower().eq('true') | df['vertical'].astype(str).str.upper().str.contains('CREDITO')
     except Exception:
         df['es_credito'] = df['vertical'].astype(str).str.upper().str.contains('CREDITO')
-    df = aplicar_alertas(df, corte=corte)
-    actualizar_historico_corte(df, corte=corte)
+    df = aplicar_alertas(
+        df,
+        corte=corte,
+        fecha_referencia=fecha_referencia,
+    )
+
+    actualizar_historico_corte(
+        df,
+        corte=corte,
+        fecha_referencia=fecha_referencia,
+    )
 
     out_excel = config.SALIDA / 'resumen_verticales_ultimo.xlsx'
     df.to_excel(out_excel, index=False)
