@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import os
 import json
@@ -145,7 +145,7 @@ print("HERCULES_RESULT_PATH=" + str(resultado))
         except Exception as exc:
             self.logger.warning(
                 "No fue posible cargar credencial "
-                "local de H?rcules: "
+                "local de Hercules: "
                 f"{type(exc).__name__}"
             )
 
@@ -853,7 +853,7 @@ print("HERCULES_RESULT_PATH=" + str(resultado))
             "LAST_N_HOURS",
         }:
             raise ValueError(
-                "H?rcules trabaja por fecha "
+                "Hercules trabaja por fecha "
                 "y resuelve internamente el "
                 "rango hasta el momento de "
                 "la consulta. Use CUT, "
@@ -882,7 +882,7 @@ print("HERCULES_RESULT_PATH=" + str(resultado))
 
             if delta < 0:
                 raise ValueError(
-                    "H?rcules no puede consultar "
+                    "Hercules no puede consultar "
                     "una fecha futura."
                 )
 

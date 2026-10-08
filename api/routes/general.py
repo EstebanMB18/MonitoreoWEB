@@ -585,7 +585,7 @@ def _normalize_signal_status(
         "ALERTA",
         "CRITICAL",
         "CRITICA",
-        "CR?TICA",
+        "CRITICA",
         "FAILED",
     }:
         return "ERROR"
@@ -643,21 +643,21 @@ def _count_signal_status(
         return {
             "status": "WARNING",
             "message":
-                f"{label} no tiene m?trica segura disponible.",
+                f"{label} no tiene metrica segura disponible.",
         }
 
     if ok <= 0 and errors > 0:
         return {
             "status": "ERROR",
             "message":
-                f"{label} registra errores y no registra ?xitos.",
+                f"{label} registra errores y no registra exitos.",
         }
 
     if errors > ok and errors > 0:
         return {
             "status": "ERROR",
             "message":
-                f"{label} registra m?s errores que ?xitos.",
+                f"{label} registra mas errores que exitos.",
         }
 
     if errors > 0:
@@ -1032,7 +1032,7 @@ def _hercules_distribution(
             "pendiente_recaudo",
         ),
         (
-            "Pendiente facturaci?n",
+            "Pendiente facturacion",
             "pendiente_facturacion",
         ),
         (
@@ -1110,7 +1110,7 @@ def _replicador_operational_status(
         return {
             "status": "WARNING",
             "message":
-                "Replicador no tiene ejecuci?n AWS disponible.",
+                "Replicador no tiene ejecucion AWS disponible.",
             "missing_hours": [],
         }
 
@@ -1159,7 +1159,7 @@ def _replicador_operational_status(
             return {
                 "status": "ERROR",
                 "message":
-                    "Replicador dej? de registrar datos durante al menos una hora.",
+                    "Replicador dejo de registrar datos durante al menos una hora.",
                 "missing_hours":
                     sorted(zero_hours),
             }
@@ -1239,7 +1239,7 @@ def _replicador_operational_status(
         return {
             "status": "ERROR",
             "message":
-                "Replicador dej? de registrar datos durante al menos una hora.",
+                "Replicador dejo de registrar datos durante al menos una hora.",
             "missing_hours":
                 missing_hours,
         }
@@ -1249,6 +1249,49 @@ def _replicador_operational_status(
         "message": None,
         "missing_hours": [],
     }
+
+
+def _sanitize_public_text(value):
+    if isinstance(value, str):
+        text = value
+
+        replacements = {
+            "\u00c3\u00b3": "o",
+            "\u00c3\u00ba": "u",
+            "\u00c3\u00a1": "a",
+            "\u00c3\u00a9": "e",
+            "\u00c3\u00ad": "i",
+            "\u00c3\u00b1": "n",
+            "H\u00c3BIL": "HABIL",
+        }
+
+        for old, new in replacements.items():
+            text = text.replace(
+                old,
+                new,
+            )
+
+        return text
+
+    if isinstance(value, dict):
+        return {
+            key: _sanitize_public_text(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(value, list):
+        return [
+            _sanitize_public_text(item)
+            for item in value
+        ]
+
+    if isinstance(value, tuple):
+        return [
+            _sanitize_public_text(item)
+            for item in value
+        ]
+
+    return value
 
 
 @router.get("/today")
@@ -1452,7 +1495,7 @@ def general_today(
         status = "ERROR"
         message = (
             "Hay aprobaciones TUP 610 "
-            "pero H?rcules Web/T. Compensar "
+            "pero Hercules Web/T. Compensar "
             "no registra pagos."
         )
     elif tup_value == 0:
@@ -1466,7 +1509,7 @@ def general_today(
 
         if delta == 0:
             message = (
-                "TUP 610 y H?rcules "
+                "TUP 610 y Hercules "
                 "Web/T. Compensar son "
                 "consistentes."
             )
@@ -1474,13 +1517,13 @@ def general_today(
             message = (
                 "Existe una diferencia "
                 "informativa entre TUP 610 "
-                "y H?rcules Web/T. Compensar."
+                "y Hercules Web/T. Compensar."
             )
 
     correlations.append(
         _correlation(
             "TUP610_HERCULES",
-            "TUP 610 ? H?rcules Web",
+            "TUP 610 vs Hercules Web",
             status,
             message,
             {
@@ -1502,7 +1545,7 @@ def general_today(
                 "TUP610_HERCULES",
             "severity": status,
             "title":
-                "TUP 610 vs H?rcules",
+                "TUP 610 vs Hercules",
             "message": message,
             "source":
                 "GENERAL_CORRELATION",
@@ -1520,7 +1563,7 @@ def general_today(
         sr_status = "ERROR"
         sr_message = (
             "Hay compras TUP 610 y "
-            "Servicios Red lleva m?s "
+            "Servicios Red lleva mas "
             "de una hora sin "
             "notificaciones."
         )
@@ -1535,7 +1578,7 @@ def general_today(
         sr_status = "NO_DATA"
         sr_message = (
             "Servicios Red no expone "
-            "a?n minutos sin actividad "
+            "aun minutos sin actividad "
             "en el resumen seguro."
         )
     else:
@@ -1549,7 +1592,7 @@ def general_today(
     correlations.append(
         _correlation(
             "TUP610_SERVICIOS_RED",
-            "TUP 610 ? Servicios Red",
+            "TUP 610 vs Servicios Red",
             sr_status,
             sr_message,
             {
@@ -1570,7 +1613,7 @@ def general_today(
                 "TUP610_SERVICIOS_RED",
             "severity": "ERROR",
             "title":
-                "TUP 610 sin notificaci?n",
+                "TUP 610 sin notificacion",
             "message": sr_message,
             "source":
                 "GENERAL_CORRELATION",
@@ -1581,7 +1624,7 @@ def general_today(
             "TUP610_HERCULES_DELTA",
             (
                 "Tarjeta Compensar "
-                "Pasarela vs H?rcules"
+                "Pasarela vs Hercules"
             ),
             status,
             message,
@@ -1625,7 +1668,7 @@ def general_today(
 
     end_message = (
         "Flujo Tarjeta Compensar "
-        "sin hallazgos cr?ticos."
+        "sin hallazgos criticos."
     )
 
     if end_status == "ERROR":
@@ -1638,14 +1681,14 @@ def general_today(
         end_message = (
             "El flujo Tarjeta Compensar "
             "presenta diferencias para "
-            "revisi?n."
+            "revision."
         )
     elif end_status in {
         "NO_DATA",
         "LEARNING",
     }:
         end_message = (
-            "No hay informaci?n "
+            "No hay informacion "
             "suficiente para concluir "
             "el estado completo del flujo."
         )
@@ -1706,7 +1749,7 @@ def general_today(
             _count_signal_status(
                 ok=mensajeria_exitos,
                 errors=mensajeria_errores,
-                label="Mensajer?a",
+                label="Mensajeria",
             ),
 
         "otp":
@@ -1744,7 +1787,7 @@ def general_today(
                 ),
             "message":
                 (
-                    "Pasarelas requiere revisi?n."
+                    "Pasarelas requiere revision."
                     if _run_signal_status(
                         pasarelas
                     ) != "OK"
@@ -1809,7 +1852,7 @@ def general_today(
     elif "NO_DATA" in statuses:
         general_status = "NO_DATA"
 
-    return {
+    payload = {
         "summary": {
             "status": general_status,
             "signal_statuses":
@@ -1961,6 +2004,7 @@ def general_today(
             datetime.now().isoformat(),
     }
 
+    return _sanitize_public_text(payload)
 
 
 def _month_monitor_map(
@@ -2053,7 +2097,7 @@ def _daily_general_status(
         return (
             "SIN_EJECUCION",
             "Sin ejecuciones oficiales "
-            "registradas para el d?a.",
+            "registradas para el dia.",
         )
 
     missing = []
@@ -2065,7 +2109,7 @@ def _daily_general_status(
         missing.append("AWS")
 
     if not executed_hercules:
-        missing.append("H?rcules")
+        missing.append("Hercules")
 
     if missing:
         return (
@@ -2084,14 +2128,14 @@ def _daily_general_status(
         return (
             "ERROR",
             "Hay aprobaciones TUP 610 "
-            "pero H?rcules Web/T. "
+            "pero Hercules Web/T. "
             "Compensar registra 0.",
         )
 
     return (
         "OK",
-        "Sin hallazgos cr?ticos en "
-        "la correlaci?n diaria.",
+        "Sin hallazgos criticos en "
+        "la correlacion diaria.",
     )
 
 
@@ -2453,7 +2497,7 @@ def general_month(
             "id":
                 "TUP610_HERCULES",
             "name":
-                "TUP 610 -> H?rcules Web",
+                "TUP 610 -> Hercules Web",
             "status": day_status,
             "message": message,
             "values": {

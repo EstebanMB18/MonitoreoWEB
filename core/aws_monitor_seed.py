@@ -227,7 +227,7 @@ LEGACY_AWS_MONITOR_SEED: dict[str, Any] = \
                             'activo': True}],
                'thresholds': {}},
               {'id': 'apimensajeria',
-               'nombre': 'API Mensajer?a',
+               'nombre': 'API Mensajeria',
                'activo': True,
                'profile': 'corporativoprod',
                'log_group': '/aws/lambda/interop-prod-apimensajeria-APIMENSAJERIA',
