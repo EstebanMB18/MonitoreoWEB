@@ -126,7 +126,19 @@ def normalizar_celda_medio(x):
         return 'REDES'
     if t == 'CUPOYA':
         return 'CUPOYA'
-    if 'TARJ. CREDITO' in t or 'TARJETA_CREDITO' in t or 'TARJETA CREDITO' in t:
+    if (
+        'TARJ. DEBITO' in t
+        or 'TARJETA_DEBITO' in t
+        or 'TARJETA DEBITO' in t
+        or 'DEBIT CARD' in t
+    ):
+        return 'TARJETA_DEBITO'
+    if (
+        'TARJ. CREDITO' in t
+        or 'TARJETA_CREDITO' in t
+        or 'TARJETA CREDITO' in t
+        or 'CREDIT CARD' in t
+    ):
         return 'TARJETA_CREDITO'
     return ''
 
@@ -252,7 +264,7 @@ def detectar_medio_fila(row, medio_col=None):
     # TUP debe ganar cuando la fila trae textos auxiliares que también contienen PSE/Tarjeta.
     for prioridad in [
         'TUP', 'MODULOS AUTOSERVICIO', 'SAP', 'REDES', 'CUPOYA',
-        'PSE', 'TARJETA_CREDITO'
+        'PSE', 'TARJETA_DEBITO', 'TARJETA_CREDITO'
     ]:
         if prioridad in encontrados:
             return prioridad
@@ -296,16 +308,53 @@ def resumir_desde_dataframe_tabular(df, medios, vertical, codigo, origen, tipo):
     d['_fecha'] = d.apply(lambda r: detectar_fecha_fila(r, fecha_col), axis=1)
 
     ok = d[d['_estado'].isin(OK_ESTADOS)].copy()
+
+    auto_medios = any(
+        str(m).strip().upper() == "__AUTO__"
+        for m in medios
+    )
+
+    if auto_medios:
+        medios_detectados = [
+            str(value).strip()
+            for value
+            in d["_medio"].dropna().tolist()
+            if str(value).strip()
+        ]
+
+        medios = list(
+            dict.fromkeys(
+                medios_detectados
+            )
+        )
+
     out = []
+
     for m in medios:
         mn = normalizar_medio(m)
+
+        if not mn:
+            mn = str(m).strip().upper()
+
         sub = ok[ok['_medio'].eq(mn)]
         total = d[d['_medio'].eq(mn)]
         fall = total[~total['_estado'].isin(OK_ESTADOS)]
         clases = total['_estado'].map(clasificar_estado_resumen) if not total.empty else pd.Series(dtype=str)
+        medio_salida = {
+            'TARJETA_CREDITO':
+                'TARJ. CREDITO',
+            'TARJETA_DEBITO':
+                'TARJ. DEBITO',
+            'MODULOS AUTOSERVICIO':
+                'MODULOS AUTOSERVICIOS',
+        }.get(
+            mn,
+            str(m),
+        )
+
         out.append({
             'vertical': vertical, 'codigo': codigo, 'origen': origen, 'tipo_reporte': tipo,
-            'medio_pago': mn, 'medio_salida': m,
+            'medio_pago': mn, 'medio_salida': medio_salida,
             'cantidad_ok': int(len(sub)), 'valor_ok': float(sub['_valor'].sum()),
             'ultima_ok': str(sub['_fecha'].max()) if not sub.empty else 'Sin aprobadas en el archivo actual',
             'cantidad_total': int(len(total)), 'cantidad_fallida': int(len(fall)),

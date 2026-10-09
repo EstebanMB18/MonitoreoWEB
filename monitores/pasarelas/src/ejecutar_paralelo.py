@@ -9,8 +9,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from core.pasarelas_config import load_pasarelas_config
 from src import config
 from src.main import procesar_archivos, cargar_verticales, rango_hoy
 
@@ -164,33 +168,102 @@ def main():
     )
 
     verticales = cargar_verticales()
+
+    pasarelas_cfg = load_pasarelas_config()
+
+    source_41621 = str(
+        pasarelas_cfg.get(
+            "vertical_41621_source_mode",
+            "PAYU",
+        )
+    ).strip().upper()
+
+    print(
+        "41621 SOURCE MODE = "
+        f"{source_41621}"
+    )
+
+    eco_cfg = verticales[
+        verticales.origen.eq("ECOLLECT")
+    ].copy()
+
     eco_items = (
-        verticales[verticales.origen.eq("ECOLLECT")]
-        [["codigo","tipo_reporte"]]
+        eco_cfg[
+            ["codigo", "tipo_reporte"]
+        ]
         .drop_duplicates()
     )
+
+    if source_41621 == "ECOLLECT":
+        extra_41621 = [
+            ("41621", "RED"),
+        ]
+
+        current_items = {
+            (
+                str(r.codigo),
+                str(r.tipo_reporte).upper(),
+            )
+            for r
+            in eco_items.itertuples(index=False)
+        }
+
+        for codigo, tipo in extra_41621:
+            if (codigo, tipo) not in current_items:
+                eco_items.loc[
+                    len(eco_items)
+                ] = [codigo, tipo]
+
     all_items = [
-        (str(r.codigo), str(r.tipo_reporte).upper())
-        for r in eco_items.itertuples(index=False)
+        (
+            str(r.codigo),
+            str(r.tipo_reporte).upper(),
+        )
+        for r
+        in eco_items.itertuples(index=False)
     ]
 
-    # PayU sí puede trabajar simultáneamente.
-    payu = subprocess.Popen(
-        [
-            sys.executable,
-            str(ROOT / "src" / "payu_worker.py"),
-            "--fecha-inicio", fi,
-            "--fecha-fin", ff,
-        ],
-        cwd=str(ROOT),
-        env={**os.environ, "PYTHONPATH": str(ROOT), "PYTHONUNBUFFERED": "1"},
+    payu = None
+
+    if source_41621 == "PAYU":
+        payu = subprocess.Popen(
+            [
+                sys.executable,
+                str(
+                    ROOT
+                    / "src"
+                    / "payu_worker.py"
+                ),
+                "--fecha-inicio",
+                fi,
+                "--fecha-fin",
+                ff,
+            ],
+            cwd=str(ROOT),
+            env={
+                **os.environ,
+                "PYTHONPATH": str(ROOT),
+                "PYTHONUNBUFFERED": "1",
+            },
+        )
+
+        print(
+            "PAYU iniciado en paralelo. "
+            f"PID={payu.pid}"
+        )
+
+    else:
+        print(
+            "PAYU omitido: 41621 "
+            "configurado por ECOLLECT."
+        )
+
+    # eCollect se mantiene secuencial.
+    all_items = (
+        ordenar_ecollect_para_ejecucion(
+            all_items
+        )
     )
-
-    print(f"PAYU iniciado en paralelo. PID={payu.pid}")
-
-    # eCollect NO se paraleliza por el estado de comercio compartido.
-    # 41605 JAVA se deja SIEMPRE de último para no frenar el resto.
-    all_items = ordenar_ecollect_para_ejecucion(all_items)
 
     print("")
     print("Orden eCollect preparado.")
@@ -199,12 +272,18 @@ def main():
 
     failed = ejecutar_ecollect_secuencial(all_items, fi, ff)
 
-    payu_rc = payu.wait()
-    print(f"PAYU finalizado código={payu_rc}")
-    if payu_rc != 0:
-        failed.append("PAYU")
+    if payu is not None:
+        payu_rc = payu.wait()
 
-    # Consolidar únicamente cuando TODO terminó.
+        print(
+            "PAYU finalizado codigo="
+            f"{payu_rc}"
+        )
+
+        if payu_rc != 0:
+            failed.append("PAYU")
+
+    # Consolidar solo cuando las fuentes terminaron.
     df, html, excel = procesar_archivos(
         corte=args.corte,
         publicar=not args.no_publicar,

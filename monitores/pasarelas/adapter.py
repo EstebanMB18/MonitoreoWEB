@@ -16,6 +16,7 @@ from core.events import EventBus
 from core.monitor_base import BaseMonitor
 from core.models import MonitorOutput, RunContext, RunStatus
 from core.platform import get_secret_store
+from core.pasarelas_config import load_pasarelas_config
 
 
 BASE = Path(__file__).resolve().parent
@@ -383,8 +384,24 @@ class PasarelasMonitor(BaseMonitor):
         return status
 
     def _build_structured_details(self) -> dict:
+        pasarelas_cfg = load_pasarelas_config()
+
+        source_41621 = str(
+            pasarelas_cfg.get(
+                "vertical_41621_source_mode",
+                "PAYU",
+            )
+        ).strip().upper()
+
+        execution_config = {
+            "vertical_41621_source_mode":
+                source_41621,
+        }
+
         if self.df is None:
             return {
+                "execution_config":
+                    execution_config,
                 "summary": {},
                 "groups": [],
                 "business_alerts": [],
@@ -720,6 +737,8 @@ class PasarelasMonitor(BaseMonitor):
         metadata = self.result.metadata
 
         return {
+            "execution_config":
+                execution_config,
             "summary": {
                 "rows": int(len(df)),
                 "verticals": int(

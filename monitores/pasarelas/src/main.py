@@ -3,6 +3,15 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import shutil
 import pandas as pd
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
+import sys
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from core.pasarelas_config import load_pasarelas_config
 from src import config
 from src.utils.archivos import limpiar_temporales
 from src.fuentes.payu_parser import resumir_payu
@@ -119,20 +128,77 @@ def procesar_archivos(
     fecha_referencia=None,
 ):
     verticales = cargar_verticales()
+
+    source_41621 = str(
+        load_pasarelas_config().get(
+            "vertical_41621_source_mode",
+            "PAYU",
+        )
+    ).strip().upper()
+
     resultados = []
     files = list(config.DESCARGAS.glob('*'))
 
     # PayU: procesar el último CSV/Excel de PayU descargado.
     payu_files = [f for f in files if ('transaction' in f.name.lower() or 'payu' in f.name.lower()) and f.suffix.lower() in ['.csv', '.xlsx', '.xls']]
-    if payu_files:
-        payu_files.sort(key=lambda p: p.stat().st_mtime)
+    if (
+        source_41621 == "PAYU"
+        and payu_files
+    ):
+        payu_files.sort(
+            key=lambda p: p.stat().st_mtime
+        )
         try:
             resultados.append(resumir_payu(payu_files[-1]))
         except Exception as e:
             print(f'Advertencia PayU: {e}')
 
     # eCollect: un archivo por codigo/tipo; si falta, queda cero.
-    eco_cfg = verticales[verticales.origen.eq('ECOLLECT')]
+    eco_cfg = verticales[
+        verticales.origen.eq("ECOLLECT")
+    ].copy()
+
+    if source_41621 == "ECOLLECT":
+        # En modo ECOLLECT, 41621 usa exclusivamente
+        # el reporte RED y descubre los medios reales
+        # presentes en el CSV.
+        eco_cfg = eco_cfg[
+            eco_cfg["codigo"]
+            .astype(str)
+            .ne("41621")
+        ].copy()
+
+        row_41621 = pd.DataFrame(
+            [
+                {
+                    "vertical":
+                        "41621 RED TIENDA",
+                    "codigo":
+                        "41621",
+                    "origen":
+                        "ECOLLECT",
+                    "tipo_reporte":
+                        "RED",
+                    "medio_pago":
+                        "__AUTO__",
+                    "medio_salida":
+                        "__AUTO__",
+                    "es_credito":
+                        "false",
+                    "activo":
+                        "true",
+                }
+            ]
+        )
+
+        eco_cfg = pd.concat(
+            [
+                eco_cfg,
+                row_41621,
+            ],
+            ignore_index=True,
+        )
+
     for (codigo, tipo), cfg in eco_cfg.groupby(['codigo', 'tipo_reporte'], sort=False):
         medios_salida = cfg['medio_salida'].tolist()
         cand = [f for f in files if f'_{codigo}_' in f.name and f'_{tipo}_' in f.name and f.suffix.lower() in ['.csv']]

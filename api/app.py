@@ -14,6 +14,7 @@ from api.manual_batches import recover_orphaned_manual_batches
 from api.routes.runs import router as runs_router
 from api.routes.settings import router as settings_router
 from api.routes.aws_config import router as aws_config_router
+from api.routes.pasarelas_config import router as pasarelas_config_router
 from core.aws_monitor_config import ensure_aws_monitor_config_seeded
 from core.monitor_scheduler import scheduler
 
@@ -55,5 +56,6 @@ app.include_router(manual_router, prefix="/api")
 app.include_router(runs_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
 app.include_router(aws_config_router, prefix="/api")
+app.include_router(pasarelas_config_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(general_router, prefix="/api")
